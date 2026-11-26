@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Books</h1>
+{% include "_books_nav.html" %}
+<div class="grid">
+<div class="card stat"><div class="label">Income {{ today.year }} to date</div><div class="value">{{ (pl.income.total + pl.other.total)|money }}</div></div>
+<div class="card stat"><div class="label">Expenses {{ today.year }} to date</div><div class="value">{{ (pl.cogs.total + pl.expenses.total)|money }}</div></div>
+<div class="card stat"><div class="label">Net income {{ today.year }} to date</div><div class="value">{{ pl.net|money }}</div></div>
+<div class="card stat"><div class="label">Total assets</div><div class="value">{{ bs.assets.total|money }}</div>{% if not bs.balanced %}<div class="small" style="color:var(--bad)">Balance sheet out of balance</div>{% endif %}</div>
+</div>
+<div class="card">
+<p style="margin-top:0">The books are kept automatically. Invoices, payments, payroll, tax deposits, expenses and categorized bank transactions all post to the chart of accounts. Use <a href="/books/journal">journal entries</a> only for things that don't come from those, such as year-end depreciation or adjustments from your CPA.</p>
+<p class="muted small" style="margin-bottom:0">Cash basis counts income when you're paid; accrual counts it when you invoice. Your tax method ({{ basis }}) is set in <a href="/settings">Settings</a>. Download the <a href="/books/general-ledger.csv?basis={{ basis }}">general ledger (CSV)</a> for your CPA.</p>
+</div>
+{% endblock %}

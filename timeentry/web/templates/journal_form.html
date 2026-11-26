@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ 'Journal entry' if je else 'New journal entry' }}</h1>
+{% include "_books_nav.html" %}
+<form method="post" action="/books/journal/save">
+<input type="hidden" name="id" value="{{ je.id if je else '' }}">
+<div class="card row"><label style="flex:0 1 170px">Date <input type="date" name="date" value="{{ (je.date if je else today).isoformat() }}" required></label>
+<label style="flex:3 1 300px">Memo <input name="memo" value="{{ je.memo if je else '' }}" placeholder="e.g. 2026 depreciation per CPA"></label></div>
+<div class="table-wrap"><table>
+<tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th><th>Line memo</th></tr>
+{% macro line(ln) %}<tr><td><select name="account_id" style="margin:0"><option value="">—</option>{% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if ln and ln.account_id == a.id }}>{{ a.label }}</option>{% endfor %}</select></td>
+<td><input name="debit" class="amt" value="{{ ln.debit|cents if ln and ln.debit else '' }}" oninput="tot()"></td><td><input name="credit" class="amt" value="{{ ln.credit|cents if ln and ln.credit else '' }}" oninput="tot()"></td>
+<td><input name="line_memo" value="{{ ln.memo if ln else '' }}" style="text-align:left"></td></tr>{% endmacro %}
+{% for ln in lines %}{{ line(ln) }}{% endfor %}{% for _ in range(blanks) %}{{ line(none) }}{% endfor %}
+<tr class="total"><td>Total</td><td class="num" id="td">$0.00</td><td class="num" id="tc">$0.00</td><td id="tdiff"></td></tr>
+</table></div>
+<div class="toolbar"><button>Save entry</button><a class="btn secondary" href="/books/journal">Cancel</a></div>
+</form>
+{% if je %}<form method="post" action="/books/journal/{{ je.id }}/delete" onsubmit="return confirm('Delete this entry?')"><button class="small danger">Delete entry</button></form>{% endif %}
+<script>
+function tot() {
+  const sum = n => [...document.getElementsByName(n)].reduce((s, i) => s + Math.round((parseFloat(i.value.replace(/[$,]/g, '')) || 0) * 100), 0);
+  const d = sum('debit'), c = sum('credit'), f = v => '$' + (v / 100).toLocaleString('en-US', {minimumFractionDigits: 2});
+  document.getElementById('td').textContent = f(d); document.getElementById('tc').textContent = f(c);
+  document.getElementById('tdiff').textContent = d === c ? '' : 'Out of balance by ' + f(Math.abs(d - c));
+}
+tot();
+</script>
+{% endblock %}

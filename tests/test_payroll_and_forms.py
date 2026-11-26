@@ -1,5 +1,6 @@
 import datetime as dt
 
+from timeentry.coa import by_code
 from timeentry.models import Client, Company, Employee, Expense, Invoice, InvoiceLine, Payment, Paycheck, PayRun, TaxDeposit
 from timeentry.payroll import recompute_run
 from timeentry.reports import form_940, form_941, form_1120s, w2s
@@ -97,10 +98,10 @@ def test_1120s(db):
     inv.payments.append(Payment(date=dt.date(2026, 3, 20), amount=500_000_00))
     db.add(inv)
     db.add_all([
-        Expense(date=dt.date(2026, 5, 1), category="software", amount=1_000_00),
-        Expense(date=dt.date(2026, 5, 1), category="meals", amount=200_00),
-        Expense(date=dt.date(2026, 6, 1), category="distribution", amount=50_000_00, shareholder_id=a.id),
-        Expense(date=dt.date(2026, 6, 1), category="distribution", amount=50_000_00, shareholder_id=b.id),
+        Expense(date=dt.date(2026, 5, 1), account_id=by_code(db, "software").id, amount=1_000_00),
+        Expense(date=dt.date(2026, 5, 1), account_id=by_code(db, "meals").id, amount=200_00),
+        Expense(date=dt.date(2026, 6, 1), account_id=by_code(db, "distribution").id, amount=50_000_00, shareholder_id=a.id),
+        Expense(date=dt.date(2026, 6, 1), account_id=by_code(db, "distribution").id, amount=50_000_00, shareholder_id=b.id),
     ])
     db.commit()
     f = form_1120s(db, company, 2026)

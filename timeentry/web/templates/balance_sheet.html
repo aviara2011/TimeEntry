@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Balance sheet</h1><span class="spacer"></span><button class="small secondary no-print" onclick="window.print()">Print</button></div>
+{% include "_books_nav.html" %}
+<form class="toolbar no-print" method="get"><input type="hidden" name="basis" value="{{ basis }}"><label>As of <input type="date" name="as_of" value="{{ as_of }}"></label><button class="small" style="align-self:flex-end">Run</button></form>
+<p class="muted">As of {{ as_of|date }} · {{ basis }} basis</p>
+{% if not r.balanced %}<div class="flash err">Assets don't equal liabilities + equity. Check the <a href="/books/trial-balance">trial balance</a>.</div>{% endif %}
+<div class="table-wrap"><table>
+{% for key in ['assets', 'liabilities', 'equity'] %}{% set sec = r[key] %}
+<tr><th colspan="2">{{ sec.title }}</th></tr>
+{% for a, v in sec.rows %}<tr><td><a href="/books/accounts/{{ a.id }}?basis={{ basis }}&end={{ as_of }}">{{ a.label }}</a></td><td class="num">{{ v|money }}</td></tr>{% endfor %}
+{% if key == 'equity' %}<tr><td>Net income this year</td><td class="num">{{ r.net_income|money }}</td></tr>
+<tr class="total"><td>Total equity</td><td class="num">{{ r.total_equity|money }}</td></tr>
+<tr class="total"><td>Total liabilities &amp; equity</td><td class="num">{{ r.total_le|money }}</td></tr>
+{% else %}<tr class="total"><td>Total {{ sec.title|lower }}</td><td class="num">{{ sec.total|money }}</td></tr>{% endif %}
+{% endfor %}
+</table></div>
+<p class="muted small">Payments not yet matched to a bank deposit sit in Undeposited funds. Match them on the Bank page to move them into checking.</p>
+{% endblock %}

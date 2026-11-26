@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Client, Invoice, InvoiceLine, Payment, Project, TimeEntry
+from ..models import Account, Client, Invoice, InvoiceLine, Payment, Project, TimeEntry
 from ..money import amount_for_minutes, fmt_hours, fmt_money, parse_money, round_cents
-from .common import get_company, get_db, parse_date, redirect, render
+from .common import get_company, get_db, opt_int, parse_date, redirect, render
 
 router = APIRouter(prefix="/invoices")
 
@@ -95,7 +95,8 @@ def invoice_view(invoice_id: int, request: Request, db: Session = Depends(get_db
     inv = db.get(Invoice, invoice_id)
     if not inv:
         return redirect("/invoices", err="Invoice not found")
-    return render(request, "invoice.html", inv=inv, company=get_company(db))
+    income = db.scalars(select(Account).where(Account.type == "income", Account.active.is_(True)).order_by(Account.number)).all()
+    return render(request, "invoice.html", inv=inv, company=get_company(db), income_accounts=income)
 
 
 @router.get("/{invoice_id}/print")
@@ -133,7 +134,7 @@ async def line_add(invoice_id: int, request: Request, db: Session = Depends(get_
     if not desc:
         return redirect(f"/invoices/{invoice_id}", err="Description is required")
     db.add(InvoiceLine(
-        invoice_id=inv.id, position=len(inv.lines), description=desc,
+        invoice_id=inv.id, position=len(inv.lines), description=desc, account_id=opt_int(f.get("account_id")),
         date=parse_date(f["date"]) if f.get("date") else None,
         quantity=str(qty), unit_price=price, amount=round_cents(qty * price),
     ))

@@ -6,20 +6,24 @@
 <input type="hidden" name="id" value="{{ edit.id if edit else '' }}">
 <div class="row"><label style="flex:0 1 150px">Date <input type="date" name="date" value="{{ (edit.date if edit else today).isoformat() }}"></label>
 <label>Payee <input name="payee" value="{{ edit.payee if edit else '' }}"></label>
-<label style="flex:2 1 240px">Category <select name="category">{% for k, (label, line) in EXPENSE_CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if edit and edit.category == k }}>{{ label }} ({{ 'Sched. ' if line.startswith('K') }}{{ 'line ' if not line.startswith('K') }}{{ line }})</option>{% endfor %}</select></label>
+<label style="flex:2 1 260px">Account <select name="account_id" required><option value="">Choose…</option>
+{% for ty, title in ACCOUNT_TYPES.items() %}{% set group = accounts|selectattr('type', 'equalto', ty)|list %}{% if group %}<optgroup label="{{ title }}">
+{% for a in group %}<option value="{{ a.id }}" {{ 'selected' if edit and edit.account_id == a.id }}>{{ a.label }}</option>{% endfor %}</optgroup>{% endif %}{% endfor %}
+</select></label>
 <label style="flex:0 1 130px">Amount ($) <input name="amount" value="{{ edit.amount|cents if edit else '' }}"></label></div>
 <div class="row" style="margin-top:10px"><label style="flex:2 1 240px">Memo <input name="memo" value="{{ edit.memo if edit else '' }}"></label>
+<label>Paid from <select name="paid_from_id"><option value="">{{ banks[0].label if banks else 'Undeposited funds' }} (default)</option>{% for b in banks %}<option value="{{ b.id }}" {{ 'selected' if edit and edit.paid_from_id == b.id }}>{{ b.label }}</option>{% endfor %}</select></label>
 <label>Shareholder (for distributions) <select name="shareholder_id"><option value="">—</option>{% for h in holders %}<option value="{{ h.id }}" {{ 'selected' if edit and edit.shareholder_id == h.id }}>{{ h.name }}</option>{% endfor %}</select></label>
 <button>{{ "Save" if edit else "Add" }}</button>{% if edit %}<a class="btn secondary" href="/expenses?year={{ year }}">Cancel</a>{% endif %}</div>
-<p class="muted small" style="margin-bottom:0">Record business expenses paid from company accounts here. Payroll and employer payroll taxes come from Payroll automatically, so don't enter them again. Owner distributions aren't deductible but go on Schedule K and each K-1.</p>
+<p class="muted small" style="margin-bottom:0">Most spending comes in through <a href="/bank">Bank</a> review and lands here automatically; use this form for anything else. Payroll and employer payroll taxes are posted by Payroll, so don't enter them here.</p>
 </form>
 <div class="grid">
-{% for k, amt in totals.items() %}<div class="card stat"><div class="label">{{ EXPENSE_CATEGORIES[k][0] }}</div><div class="value" style="font-size:1.1rem">{{ amt|money }}</div></div>{% endfor %}
+{% for label, amt in totals %}<div class="card stat"><div class="label">{{ label }}</div><div class="value" style="font-size:1.1rem">{{ amt|money }}</div></div>{% endfor %}
 </div>
 <div class="table-wrap"><table>
-<tr><th>Date</th><th>Payee</th><th>Category</th><th>Memo</th><th class="num">Amount</th><th></th></tr>
+<tr><th>Date</th><th>Payee</th><th>Account</th><th>Memo</th><th class="num">Amount</th><th></th></tr>
 {% for e in expenses %}
-<tr><td>{{ e.date|date }}</td><td>{{ e.payee }}</td><td>{{ EXPENSE_CATEGORIES.get(e.category, ('Other',))[0] }}{% if e.shareholder %} — {{ e.shareholder.name }}{% endif %}</td><td>{{ e.memo }}</td><td class="num">{{ e.amount|money }}</td>
+<tr><td>{{ e.date|date }}</td><td>{{ e.payee }}</td><td>{{ e.account.label if e.account else '' }}{% if e.shareholder %} — {{ e.shareholder.name }}{% endif %}</td><td>{{ e.memo }}</td><td class="num">{{ e.amount|money }}</td>
 <td style="white-space:nowrap"><a class="btn secondary small" href="/expenses?year={{ year }}&edit={{ e.id }}">Edit</a>
 <form class="inline" method="post" action="/expenses/{{ e.id }}/delete" onsubmit="return confirm('Delete?')"><button class="small danger">Delete</button></form></td></tr>
 {% else %}<tr><td colspan="6" class="muted">No expenses recorded for {{ year }}.</td></tr>{% endfor %}

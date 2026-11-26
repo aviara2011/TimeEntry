@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Journal entries</h1><span class="spacer"></span><a class="btn" href="/books/journal/new">New entry</a></div>
+{% include "_books_nav.html" %}
+<div class="table-wrap"><table>
+<tr><th>Date</th><th>Memo</th><th>Accounts</th><th class="num">Amount</th></tr>
+{% for je in entries %}<tr><td><a href="/books/journal/{{ je.id }}">{{ je.date|date }}</a></td><td>{{ je.memo }}</td>
+<td class="small">{% for ln in je.lines %}{{ ln.account.label }} {{ 'Dr' if ln.debit else 'Cr' }}{{ '' if loop.last else ' · ' }}{% endfor %}</td>
+<td class="num">{{ je.lines|sum(attribute='debit')|money }}</td></tr>
+{% else %}<tr><td colspan="4" class="muted">No manual entries. Most activity posts automatically; journal entries are for depreciation, opening balances and CPA adjustments.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

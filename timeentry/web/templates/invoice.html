@@ -19,12 +19,13 @@
 <div class="table-wrap"><table>
 <tr><th>Date</th><th>Description</th><th class="num">Qty / Hours</th><th class="num">Rate</th><th class="num">Amount</th><th></th></tr>
 {% for l in inv.lines %}
-<tr><td>{{ l.date|date }}</td><td>{{ l.description }}</td><td class="num">{{ l.quantity }}</td><td class="num">{{ l.unit_price|money }}</td><td class="num">{{ l.amount|money }}</td>
+<tr><td>{{ l.date|date }}</td><td>{{ l.description }}{% if l.account_id and l.account_id != income_accounts|selectattr('code','equalto','revenue')|map(attribute='id')|first %}<div class="muted small">{{ (income_accounts|selectattr('id','equalto',l.account_id)|first).label }}</div>{% endif %}</td><td class="num">{{ l.quantity }}</td><td class="num">{{ l.unit_price|money }}</td><td class="num">{{ l.amount|money }}</td>
 <td>{% if inv.status == 'draft' %}<form class="inline" method="post" action="/invoices/{{ inv.id }}/lines/{{ l.id }}/delete"><button class="small danger">Remove</button></form>{% endif %}</td></tr>
 {% endfor %}
 {% if inv.status == 'draft' %}
 <tr><td><form id="lf" method="post" action="/invoices/{{ inv.id }}/lines"></form><input form="lf" type="date" name="date" style="text-align:left"></td><td><input form="lf" name="description" placeholder="Fixed fee, expense reimbursement…" style="text-align:left"></td>
-<td><input form="lf" name="quantity" value="1"></td><td><input form="lf" name="unit_price" placeholder="0.00"></td><td></td><td><button form="lf" class="small">Add line</button></td></tr>
+<td><input form="lf" name="quantity" value="1">
+<select form="lf" name="account_id" style="margin-top:4px">{% for a in income_accounts %}<option value="{{ a.id }}" {{ 'selected' if a.code == 'revenue' }}>{{ a.label }}</option>{% endfor %}</select></td><td><input form="lf" name="unit_price" placeholder="0.00"></td><td></td><td><button form="lf" class="small">Add line</button></td></tr>
 {% endif %}
 <tr class="total"><td colspan="4">Total</td><td class="num">{{ inv.total|money }}</td><td></td></tr>
 </table></div>

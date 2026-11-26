@@ -145,6 +145,7 @@ class InvoiceLine(Base):
     invoice_id: Mapped[int] = mapped_column(ForeignKey("invoice.id"))
     position: Mapped[int] = mapped_column(Integer, default=0)
     time_entry_id: Mapped[int | None] = mapped_column(ForeignKey("time_entry.id"), nullable=True)
+    account_id: Mapped[int | None] = mapped_column(ForeignKey("account.id"), nullable=True)  # income account
     date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     description: Mapped[str] = mapped_column(Text, default="")
     quantity: Mapped[str] = mapped_column(String(20), default="1")  # hours or units, decimal text
@@ -219,43 +220,19 @@ class Paycheck(Base):
         return self.fit + self.ss_ee + self.ss_er + self.medicare_ee + self.medicare_er + self.addl_medicare
 
 
-EXPENSE_CATEGORIES: dict[str, tuple[str, str]] = {
-    # key: (label, Form 1120-S line)
-    "rent": ("Rent", "11"),
-    "taxes_licenses": ("Taxes and licenses (non-payroll)", "12"),
-    "interest": ("Interest expense", "13"),
-    "depreciation": ("Depreciation (from Form 4562)", "14"),
-    "advertising": ("Advertising", "16"),
-    "retirement": ("Retirement plan contributions (employer)", "17"),
-    "benefits": ("Employee benefit programs", "18"),
-    "repairs": ("Repairs and maintenance", "9"),
-    "bad_debts": ("Bad debts", "10"),
-    "software": ("Software & subscriptions", "19"),
-    "professional": ("Legal & professional fees", "19"),
-    "office": ("Office supplies & expenses", "19"),
-    "phone_internet": ("Phone & internet", "19"),
-    "insurance": ("Insurance (business)", "19"),
-    "travel": ("Travel", "19"),
-    "meals": ("Business meals (50% deductible)", "19"),
-    "bank_fees": ("Bank & merchant fees", "19"),
-    "contractors": ("Contract labor (1099)", "19"),
-    "other": ("Other deductions", "19"),
-    "cogs": ("Cost of goods sold", "2"),
-    "distribution": ("Shareholder distribution (not deductible)", "K-16d"),
-    "nondeductible": ("Non-deductible (fines, personal, etc.)", "K-16c"),
-}
-
-
 class Expense(Base):
     __tablename__ = "expense"
     id: Mapped[int] = mapped_column(primary_key=True)
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     payee: Mapped[str] = mapped_column(String(200), default="")
-    category: Mapped[str] = mapped_column(String(30), default="other")
+    category: Mapped[str] = mapped_column(String(30), default="")  # legacy; account_id is used
+    account_id: Mapped[int | None] = mapped_column(ForeignKey("account.id"), nullable=True)
+    paid_from_id: Mapped[int | None] = mapped_column(ForeignKey("bank_account.id"), nullable=True)
     amount: Mapped[int] = mapped_column(Integer)
     memo: Mapped[str] = mapped_column(Text, default="")
     shareholder_id: Mapped[int | None] = mapped_column(ForeignKey("employee.id"), nullable=True)
     shareholder: Mapped[Employee | None] = relationship()
+    account: Mapped[Account | None] = relationship()
 
 
 class TaxDeposit(Base):
@@ -284,6 +261,7 @@ class BankAccount(Base):
     bank_balance: Mapped[int | None] = mapped_column(Integer, nullable=True)  # last balance reported by the bank
     bank_balance_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     simplefin_id: Mapped[str | None] = mapped_column(String(200), nullable=True, unique=True)
+    gl_account_id: Mapped[int | None] = mapped_column(ForeignKey("account.id"), nullable=True)
     last_sync: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -312,6 +290,7 @@ class BankTransaction(Base):
     tax_deposit_id: Mapped[int | None] = mapped_column(ForeignKey("tax_deposit.id", ondelete="SET NULL"), nullable=True)
     paycheck_id: Mapped[int | None] = mapped_column(ForeignKey("paycheck.id", ondelete="SET NULL"), nullable=True)
     pay_run_id: Mapped[int | None] = mapped_column(ForeignKey("pay_run.id", ondelete="SET NULL"), nullable=True)
+    gl_account_id: Mapped[int | None] = mapped_column(ForeignKey("account.id"), nullable=True)  # posted straight to an account
     created_record: Mapped[bool] = mapped_column(Boolean, default=False)  # we created the linked record
     reconciliation_id: Mapped[int | None] = mapped_column(ForeignKey("reconciliation.id"), nullable=True)
     account: Mapped[BankAccount] = relationship()
@@ -320,6 +299,7 @@ class BankTransaction(Base):
     tax_deposit: Mapped[TaxDeposit | None] = relationship()
     paycheck: Mapped[Paycheck | None] = relationship()
     pay_run: Mapped[PayRun | None] = relationship()
+    gl_account: Mapped[Account | None] = relationship()
 
     __table_args__ = (
         UniqueConstraint("account_id", "external_id", name="uq_bank_txn_external"),
@@ -347,3 +327,70 @@ class BankConnection(Base):
     access_url: Mapped[str] = mapped_column(Text)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.now)
     last_error: Mapped[str] = mapped_column(Text, default="")
+
+
+# ---------------------------------------------------------------- general ledger
+ACCOUNT_TYPES = {"asset": "Assets", "liability": "Liabilities", "equity": "Equity", "income": "Income", "expense": "Expenses"}
+DEBIT_NORMAL = {"asset", "expense"}
+
+TAX_LINES = {
+    "": "— not on the return —",
+    "1a": "1120-S line 1a: Gross receipts", "1b": "1120-S line 1b: Returns and allowances",
+    "2": "1120-S line 2: Cost of goods sold", "5": "1120-S line 5: Other income",
+    "7": "1120-S line 7: Compensation of officers", "8": "1120-S line 8: Salaries and wages",
+    "9": "1120-S line 9: Repairs and maintenance", "10": "1120-S line 10: Bad debts", "11": "1120-S line 11: Rents",
+    "12": "1120-S line 12: Taxes and licenses", "13": "1120-S line 13: Interest", "14": "1120-S line 14: Depreciation",
+    "16": "1120-S line 16: Advertising", "17": "1120-S line 17: Pension, profit-sharing plans",
+    "18": "1120-S line 18: Employee benefit programs", "19": "1120-S line 19: Other deductions",
+    "K4": "Schedule K line 4: Interest income", "K12a": "Schedule K line 12a: Charitable contributions",
+    "K16c": "Schedule K line 16c: Nondeductible expenses", "K16d": "Schedule K line 16d: Distributions",
+    "L1": "Schedule L line 1: Cash", "L2a": "Schedule L line 2a: Accounts receivable",
+    "L6": "Schedule L line 6: Other current assets", "L10a": "Schedule L line 10a: Depreciable assets",
+    "L10b": "Schedule L line 10b: Accumulated depreciation", "L16": "Schedule L line 16: Accounts payable",
+    "L18": "Schedule L line 18: Other current liabilities", "L19": "Schedule L line 19: Loans from shareholders",
+    "L20": "Schedule L line 20: Mortgages, notes, bonds payable", "L22": "Schedule L line 22: Capital stock",
+    "L23": "Schedule L line 23: Additional paid-in capital", "L24": "Schedule L line 24: Retained earnings",
+}
+
+
+class Account(Base):
+    __tablename__ = "account"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(10), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    type: Mapped[str] = mapped_column(String(10))  # asset | liability | equity | income | expense
+    code: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True)  # key used by the app
+    tax_line: Mapped[str] = mapped_column(String(6), default="")
+    deductible_pct: Mapped[int] = mapped_column(Integer, default=100)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+
+    @property
+    def label(self) -> str:
+        return f"{self.number} {self.name}"
+
+    @property
+    def debit_normal(self) -> bool:
+        return self.type in DEBIT_NORMAL
+
+
+class JournalEntry(Base):
+    __tablename__ = "journal_entry"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    memo: Mapped[str] = mapped_column(Text, default="")
+    lines: Mapped[list[JournalLine]] = relationship(back_populates="entry", cascade="all, delete-orphan",
+                                                    order_by="JournalLine.id")
+
+
+class JournalLine(Base):
+    __tablename__ = "journal_line"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entry_id: Mapped[int] = mapped_column(ForeignKey("journal_entry.id"))
+    account_id: Mapped[int] = mapped_column(ForeignKey("account.id"))
+    debit: Mapped[int] = mapped_column(Integer, default=0)
+    credit: Mapped[int] = mapped_column(Integer, default=0)
+    memo: Mapped[str] = mapped_column(Text, default="")
+    entry: Mapped[JournalEntry] = relationship(back_populates="lines")
+    account: Mapped[Account] = relationship()

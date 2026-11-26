@@ -35,5 +35,9 @@ def make_sessionmaker(engine):
 
 def init_db(engine):
     from . import models  # noqa: F401  (register tables)
+    from .coa import backfill, migrate
 
     Base.metadata.create_all(engine)
+    migrate(engine)
+    with make_sessionmaker(engine)() as db:
+        backfill(db)

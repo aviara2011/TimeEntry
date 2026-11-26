@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Chart of accounts</h1><span class="spacer"></span>
+<a class="btn secondary small" href="/books/accounts?inactive={{ '0' if show_inactive else '1' }}">{{ 'Hide' if show_inactive else 'Show' }} inactive</a>
+<a class="btn" href="/books/accounts/new">New account</a></div>
+{% include "_books_nav.html" %}
+{% for ty, title in ACCOUNT_TYPES.items() %}
+<h2>{{ title }}</h2>
+<div class="table-wrap"><table>
+<tr><th style="width:80px">Number</th><th>Name</th><th>Tax return line</th><th class="num">Balance</th></tr>
+{% for a, bal in rows if a.type == ty %}
+<tr><td>{{ a.number }}</td><td><a href="/books/accounts/{{ a.id }}">{{ a.name }}</a>{% if not a.active %} <span class="badge">inactive</span>{% endif %}{% if a.deductible_pct != 100 %} <span class="muted small">{{ a.deductible_pct }}% deductible</span>{% endif %}</td>
+<td class="small muted">{{ TAX_LINES.get(a.tax_line, a.tax_line) if a.tax_line else '—' }}</td><td class="num">{{ bal|money }}</td></tr>
+{% endfor %}
+</table></div>
+{% endfor %}
+{% endblock %}

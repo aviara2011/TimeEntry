@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import EXPENSE_CATEGORIES, PAY_FREQUENCIES, Company
+from ..models import ACCOUNT_TYPES, PAY_FREQUENCIES, TAX_LINES, Company
 from ..money import amount_for_minutes, cents_to_str, fmt_hours, fmt_money
 from ..tax.tables import FILING_STATUSES
 
@@ -20,7 +20,8 @@ templates.env.filters["hours"] = fmt_hours
 templates.env.filters["cents"] = cents_to_str
 templates.env.filters["date"] = lambda d: d.strftime("%b %d, %Y") if d else ""
 templates.env.globals.update(
-    EXPENSE_CATEGORIES=EXPENSE_CATEGORIES,
+    ACCOUNT_TYPES=ACCOUNT_TYPES,
+    TAX_LINES=TAX_LINES,
     amount_for_minutes=amount_for_minutes,
     PAY_FREQUENCIES=PAY_FREQUENCIES,
     FILING_STATUSES=FILING_STATUSES,
@@ -72,3 +73,13 @@ def opt_int(text: str | None) -> int | None:
 
 def checked(form, name: str) -> bool:
     return form.get(name) in ("on", "true", "1", "yes")
+
+
+def spend_accounts(db: Session):
+    """Accounts money can be spent to, expenses first (for dropdowns)."""
+    from ..models import Account
+
+    order = {"expense": 0, "equity": 1, "liability": 2, "asset": 3, "income": 4}
+    accts = [a for a in db.scalars(select(Account).where(Account.active.is_(True)))
+             if a.code not in ("ar", "undeposited", "retained", "opening") and not (a.is_system and a.type == "asset" and not a.code)]
+    return sorted(accts, key=lambda a: (order[a.type], a.number))

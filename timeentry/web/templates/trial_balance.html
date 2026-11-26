@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Trial balance</h1><span class="spacer"></span><a class="btn small secondary no-print" href="?as_of={{ as_of }}&basis={{ basis }}&format=csv">CSV</a></div>
+{% include "_books_nav.html" %}
+<form class="toolbar no-print" method="get"><input type="hidden" name="basis" value="{{ basis }}"><label>As of <input type="date" name="as_of" value="{{ as_of }}"></label><button class="small" style="align-self:flex-end">Run</button></form>
+<div class="table-wrap"><table>
+<tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr>
+{% for a, d, c in rows %}<tr><td><a href="/books/accounts/{{ a.id }}?basis={{ basis }}">{{ a.label }}</a></td><td class="num">{{ d|money if d }}</td><td class="num">{{ c|money if c }}</td></tr>{% endfor %}
+<tr class="total"><td>Total</td><td class="num">{{ debits|money }}</td><td class="num">{{ credits|money }}</td></tr>
+</table></div>
+<p class="muted small">Income and expense accounts show all-time totals here; the balance sheet closes prior years into retained earnings.</p>
+{% endblock %}

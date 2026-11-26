@@ -2,6 +2,7 @@ import datetime as dt
 import re
 
 from timeentry import simplefin
+from timeentry.coa import by_code
 from timeentry.bank_import import ParsedTxn
 from timeentry.models import BankAccount, BankTransaction, Expense, Invoice, Payment, TaxDeposit
 from timeentry.simplefin import SFAccount
@@ -36,7 +37,7 @@ def test_bank_workflow(client, db):
     ok(client.post("/invoices/1/lines", data={"description": "Work", "quantity": "3.75", "unit_price": "150"}))
     ok(client.post("/invoices/1/status", data={"action": "send"}))
     # An expense typed in by hand before the bank import
-    ok(client.post("/expenses/save", data={"date": "2026-11-09", "payee": "Hartford", "category": "insurance", "amount": "1200"}))
+    ok(client.post("/expenses/save", data={"date": "2026-11-09", "payee": "Hartford", "account_id": str(by_code(db, "insurance").id), "amount": "1200"}))
 
     ok(client.post("/bank/accounts/save", data={"name": "Checking", "opening_balance": "20000", "kind": "checking"}))
     r = ok(client.post("/bank/1/import", files={"file": ("nov.qfx", OFX.encode())}))
@@ -67,17 +68,17 @@ def test_bank_workflow(client, db):
     ok(client.post(f"/bank/txn/{sam.id}/action", data={"action": "dist:1"}))
     db.expire_all()
     assert db.query(TaxDeposit).one().amount == 250000
-    assert db.query(Expense).filter(Expense.category == "distribution").one().shareholder_id == 1
+    assert db.query(Expense).filter(Expense.account_id == by_code(db, "distribution").id).one().shareholder_id == 1
 
     # Undo removes the record the review screen created
     ok(client.post(f"/bank/txn/{gh.id}/unmatch"))
     db.expire_all()
-    assert db.query(Expense).filter(Expense.category == "software").count() == 0
+    assert db.query(Expense).filter(Expense.account_id == by_code(db, "software").id).count() == 0
     ok(client.post(f"/bank/txn/{gh.id}/action", data={"action": "exp:software"}))
 
     # Next month's GitHub charge remembers the category
     ok(client.post("/bank/1/import", files={"file": ("dec.csv", b"Date,Description,Amount\n12/05/2026,GITHUB INC 5512,-48.00\n")}))
-    assert "Software &amp; subscriptions (same as last time)" in client.get("/bank/1").text
+    assert "6600 Software &amp; subscriptions (same as last time)" in client.get("/bank/1").text
 
     # Undoing an invoice payment reopens the invoice
     ok(client.post(f"/bank/txn/{deposit.id}/unmatch"))

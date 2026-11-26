@@ -1,0 +1,12 @@
+{% set p = request.url.path %}
+<div class="toolbar no-print">
+<a class="btn small {{ '' if p == '/books' else 'secondary' }}" href="/books">Overview</a>
+<a class="btn small {{ '' if p.startswith('/books/accounts') else 'secondary' }}" href="/books/accounts">Chart of accounts</a>
+<a class="btn small {{ '' if p == '/books/pl' else 'secondary' }}" href="/books/pl">Profit &amp; loss</a>
+<a class="btn small {{ '' if p == '/books/balance-sheet' else 'secondary' }}" href="/books/balance-sheet">Balance sheet</a>
+<a class="btn small {{ '' if p == '/books/trial-balance' else 'secondary' }}" href="/books/trial-balance">Trial balance</a>
+<a class="btn small {{ '' if p.startswith('/books/journal') else 'secondary' }}" href="/books/journal">Journal entries</a>
+{% if basis is defined %}<span class="spacer"></span><span class="muted small">Basis:</span>
+<a class="btn small {{ '' if basis == 'cash' else 'secondary' }}" href="?{{ request.url.query|replace('basis=accrual','')|replace('basis=cash','') }}&basis=cash">Cash</a>
+<a class="btn small {{ '' if basis == 'accrual' else 'secondary' }}" href="?{{ request.url.query|replace('basis=accrual','')|replace('basis=cash','') }}&basis=accrual">Accrual</a>{% endif %}
+</div>

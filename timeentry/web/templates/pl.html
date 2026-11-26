@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Profit &amp; loss</h1><span class="spacer"></span><button class="small secondary no-print" onclick="window.print()">Print</button>
+<a class="btn small secondary no-print" href="?start={{ start }}&end={{ end }}&basis={{ basis }}&format=csv">CSV</a></div>
+{% include "_books_nav.html" %}
+<form class="toolbar no-print" method="get"><input type="hidden" name="basis" value="{{ basis }}">
+<label>From <input type="date" name="start" value="{{ start }}"></label><label>To <input type="date" name="end" value="{{ end }}"></label><button class="small" style="align-self:flex-end">Run</button>
+{% for label, s, e in [('This year', today.replace(month=1, day=1), today), ('Last year', today.replace(year=today.year-1, month=1, day=1), today.replace(year=today.year-1, month=12, day=31))] %}
+<a class="btn small secondary" style="align-self:flex-end" href="?start={{ s }}&end={{ e }}&basis={{ basis }}">{{ label }}</a>{% endfor %}</form>
+<p class="muted">{{ start|date }} – {{ end|date }} · {{ basis }} basis</p>
+<div class="table-wrap"><table>
+{% for key in ['income', 'cogs'] %}{% set sec = r[key] %}{% if sec.rows or key == 'income' %}
+<tr><th colspan="2">{{ sec.title }}</th></tr>
+{% for a, v in sec.rows %}<tr><td><a href="/books/accounts/{{ a.id }}?start={{ start }}&end={{ end }}&basis={{ basis }}">{{ a.label }}</a></td><td class="num">{{ v|money }}</td></tr>{% endfor %}
+<tr class="total"><td>Total {{ sec.title|lower }}</td><td class="num">{{ sec.total|money }}</td></tr>{% endif %}{% endfor %}
+{% if r.cogs.rows %}<tr class="total"><td>Gross profit</td><td class="num">{{ r.gross_profit|money }}</td></tr>{% endif %}
+<tr><th colspan="2">Expenses</th></tr>
+{% for a, v in r.expenses.rows %}<tr><td><a href="/books/accounts/{{ a.id }}?start={{ start }}&end={{ end }}&basis={{ basis }}">{{ a.label }}</a></td><td class="num">{{ v|money }}</td></tr>{% endfor %}
+<tr class="total"><td>Total expenses</td><td class="num">{{ r.expenses.total|money }}</td></tr>
+{% if r.other.rows %}<tr><th colspan="2">Other income</th></tr>
+{% for a, v in r.other.rows %}<tr><td>{{ a.label }}</td><td class="num">{{ v|money }}</td></tr>{% endfor %}{% endif %}
+<tr class="total"><td>Net income</td><td class="num">{{ r.net|money }}</td></tr>
+</table></div>
+{% endblock %}

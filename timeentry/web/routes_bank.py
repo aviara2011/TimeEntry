@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import simplefin
+from ..coa import ensure_bank_gl
 from ..bank_import import parse_file
 from ..banking import (
     action_choices, apply_action, book_balance, cleared_balance, describe_link, import_transactions,
@@ -56,6 +57,9 @@ async def account_save(request: Request, db: Session = Depends(get_db)):
     except ValueError as exc:
         return redirect("/bank", err=str(exc))
     db.add(a)
+    db.flush()
+    gl = ensure_bank_gl(db, a)
+    gl.name = a.label + (f" ({a.institution})" if a.institution else "")
     db.commit()
     return redirect(f"/bank/{a.id}", msg="Account saved")
 
@@ -170,6 +174,7 @@ async def _sync(db: Session, days: int | None = None):
                             kind="credit_card" if "card" in sa.name.lower() else "checking", opening_balance=0)
             db.add(a)
             db.flush()
+            ensure_bank_gl(db, a)
         res = import_transactions(db, a, sa.transactions, "simplefin")
         added += res.added
         a.bank_balance, a.bank_balance_date = sa.balance, sa.balance_date or dt.date.today()

@@ -3,27 +3,36 @@
 <div class="toolbar no-print"><a href="/taxes?year={{ f.year }}">← Taxes</a><span class="spacer"></span>
 <a class="btn small secondary" href="/taxes/1120s?year={{ f.year - 1 }}">{{ f.year - 1 }}</a><a class="btn small secondary" href="/taxes/1120s?year={{ f.year + 1 }}">{{ f.year + 1 }}</a><button class="small secondary" onclick="window.print()">Print</button></div>
 <h1>Form 1120-S worksheet: {{ f.year }}</h1>
-<p class="muted">{{ company.name }} · EIN {{ company.ein or '(set in Settings)' }} · {{ f.method }} method · due March 15, {{ f.year + 1 }} (Form 7004 extends it 6 months)</p>
+<p class="muted">{{ company.name }} · EIN {{ company.ein or '(set in Settings)' }} · {{ f.method }} method · due March 15, {{ f.year + 1 }} (Form 7004 extends it 6 months) · built from the <a href="/books">books</a></p>
 {% for w in f.warnings %}<div class="note">{{ w }}</div>{% endfor %}
 <div class="card"><h3 style="margin-top:0">Income</h3><dl class="form">
-<dt>Line 1a</dt><dd>Gross receipts ({{ 'payments received' if f.method == 'cash' else 'invoices issued' }})</dd><dd class="amt">{{ f.line1a_gross_receipts|money }}</dd>
+<dt>Line 1a</dt><dd>Gross receipts or sales</dd><dd class="amt">{{ f.line1a_gross_receipts|money }}</dd>
+<dt>Line 1b</dt><dd>Returns and allowances</dd><dd class="amt">{{ f.line1b_returns|money }}</dd>
+<dt>Line 1c</dt><dd>Balance</dd><dd class="amt">{{ f.line1c|money }}</dd>
 <dt>Line 2</dt><dd>Cost of goods sold</dd><dd class="amt">{{ f.line2_cogs|money }}</dd>
 <dt>Line 3</dt><dd>Gross profit</dd><dd class="amt">{{ f.line3_gross_profit|money }}</dd>
+<dt>Line 5</dt><dd>Other income</dd><dd class="amt">{{ f.line5_other_income|money }}</dd>
 <dt>Line 6</dt><dd>Total income</dd><dd class="amt">{{ f.line6_total_income|money }}</dd></dl></div>
 <div class="card"><h3 style="margin-top:0">Deductions</h3><dl class="form">
-{% for line, amt in f.lines.items() %}<dt>Line {{ line }}</dt><dd>{{ labels[line] }}{% if line == '12' %} (includes employer payroll taxes){% endif %}</dd><dd class="amt">{{ amt|money }}</dd>{% endfor %}
+{% for line, amt in f.lines.items() %}<dt>Line {{ line }}</dt><dd>{{ labels[line] }}
+{% if f.line_detail[line]|length > 1 or line == '19' %}<div class="small">{% for label, a in f.line_detail[line] %}<div>{{ label }}: {{ a|money }}</div>{% endfor %}</div>{% endif %}</dd><dd class="amt">{{ amt|money }}</dd>{% endfor %}
 <dt>Line 20</dt><dd>Total deductions</dd><dd class="amt">{{ f.line20_total_deductions|money }}</dd>
 <dt>Line 21</dt><dd><strong>Ordinary business income (loss)</strong></dd><dd class="amt">{{ f.line21_ordinary_income|money }}</dd></dl>
-{% if f.other_deductions %}<h3>Line 19 statement</h3><dl class="form">{% for label, amt in f.other_deductions.items() %}<dt></dt><dd>{{ label }}</dd><dd class="amt">{{ amt|money }}</dd>{% endfor %}</dl>{% endif %}
 </div>
 {% if f.officer_comp %}<div class="card"><h3 style="margin-top:0">Form 1125-E: officer compensation</h3>
-<p class="muted small">Required only if total receipts are $500,000 or more; otherwise enter the total on line 7.</p>
+<p class="muted small">Required only if total receipts are $500,000 or more; otherwise enter the total on line 7. Amounts are W-2 box 1 wages from payroll.</p>
 <div class="table-wrap"><table><tr><th>Officer</th><th class="num">% stock owned</th><th class="num">Compensation</th></tr>
 {% for emp, amt, pct in f.officer_comp %}<tr><td>{{ emp.name }}</td><td class="num">{{ pct }}%</td><td class="num">{{ amt|money }}</td></tr>{% endfor %}</table></div></div>{% endif %}
-<div class="card"><h3 style="margin-top:0">Schedule K / K-1</h3>
-<div class="table-wrap"><table><tr><th>Shareholder</th><th class="num">Ownership</th><th class="num">Box 1: Ordinary income</th><th class="num">Box 16C: Nondeductible</th><th class="num">Box 16D: Distributions</th></tr>
-{% for k in f.k1s %}<tr><td>{{ k.shareholder.name }}</td><td class="num">{{ k.pct }}%</td><td class="num">{{ k.ordinary_income|money }}</td><td class="num">{{ k.nondeductible|money }}</td><td class="num">{{ k.distributions|money }}</td></tr>{% endfor %}
-<tr class="total"><td>Schedule K total</td><td class="num">{{ f.ownership_total }}%</td><td class="num">{{ f.line21_ordinary_income|money }}</td><td class="num">{{ f.nondeductible_total|money }}</td><td class="num">{{ f.distributions_total|money }}</td></tr></table></div>
+<div class="card"><h3 style="margin-top:0">Schedule K and K-1s</h3>
+<div class="table-wrap"><table><tr><th>Shareholder</th><th class="num">Ownership</th><th class="num">Box 1: Ordinary income</th><th class="num">Box 4: Interest</th><th class="num">Box 12A: Charity</th><th class="num">Box 16C: Nondeductible</th><th class="num">Box 16D: Distributions</th></tr>
+{% for k in f.k1s %}<tr><td>{{ k.shareholder.name }}</td><td class="num">{{ k.pct }}%</td><td class="num">{{ k.ordinary_income|money }}</td><td class="num">{{ k.interest|money }}</td><td class="num">{{ k.charity|money }}</td><td class="num">{{ k.nondeductible|money }}</td><td class="num">{{ k.distributions|money }}</td></tr>{% endfor %}
+<tr class="total"><td>Schedule K total</td><td class="num">{{ f.ownership_total }}%</td><td class="num">{{ f.line21_ordinary_income|money }}</td><td class="num">{{ f.k4_interest|money }}</td><td class="num">{{ f.k12a_charity|money }}</td><td class="num">{{ f.nondeductible_total|money }}</td><td class="num">{{ f.distributions_total|money }}</td></tr></table></div>
 </div>
-<div class="note">Still needed for a complete return: depreciation (Form 4562), Schedule B questions, Schedule L balance sheet and M-1/M-2 (required if receipts are $250,000 or more or assets are $250,000 or more), shareholder basis (Form 7203), and the QBI information for Box 17 code V. Give this worksheet to your CPA or use it alongside tax software.</div>
+<div class="card"><h3 style="margin-top:0">Schedule L: balance sheet per books</h3>
+<p class="muted small">Required if total receipts are $250,000 or more, or total assets are $250,000 or more.</p>
+<div class="table-wrap"><table><tr><th>Line</th><th></th><th class="num">Beginning of year</th><th class="num">End of year</th></tr>
+{% for line, label, b, e in f.schedule_l %}<tr class="{{ 'total' if line in ['L15', 'L27'] }}"><td>{{ line[1:] }}</td><td>{{ label }}</td><td class="num">{{ b|money }}</td><td class="num">{{ e|money }}</td></tr>{% endfor %}
+</table></div></div>
+{% if f.unmapped %}<div class="card"><h3 style="margin-top:0">Accounts without a tax line</h3>{% for label, amt in f.unmapped %}<div>{{ label }}: {{ amt|money }}</div>{% endfor %}</div>{% endif %}
+<div class="note">Still needed for a complete return: depreciation (Form 4562), Schedule B questions, Schedules M-1/M-2, shareholder basis (Form 7203), and the QBI information for Box 17 code V. Give this worksheet and the <a href="/books/general-ledger.csv?start={{ f.year }}-01-01&end={{ f.year }}-12-31">general ledger</a> to your CPA.</div>
 {% endblock %}

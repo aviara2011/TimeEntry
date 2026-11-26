@@ -9,10 +9,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..models import EXPENSE_CATEGORIES, PAY_FREQUENCIES, BankTransaction, Client, Employee, Expense, Invoice, Payment, Project, TimeEntry
+from ..models import PAY_FREQUENCIES, Account, BankAccount, BankTransaction, Client, Employee, Expense, Invoice, Payment, Project, TimeEntry
 from ..money import amount_for_minutes, parse_money
 from ..reports import upcoming_deadlines
-from .common import checked, get_company, get_db, opt_int, parse_date, redirect, render
+from .common import checked, get_company, get_db, opt_int, parse_date, redirect, render, spend_accounts
 
 router = APIRouter()
 
@@ -52,8 +52,8 @@ def clients(request: Request, db: Session = Depends(get_db)):
     return render(request, "clients.html", clients=rows)
 
 
-@router.get("/clients/new")
 @router.get("/clients/{client_id}")
+@router.get("/clients/new")
 def client_form(request: Request, client_id: int | None = None, db: Session = Depends(get_db)):
     client = db.get(Client, client_id) if client_id else Client(default_rate=0, active=True)
     return render(request, "client_form.html", client=client)
@@ -102,8 +102,8 @@ def employees(request: Request, db: Session = Depends(get_db)):
     return render(request, "employees.html", employees=rows, company=get_company(db))
 
 
-@router.get("/employees/new")
 @router.get("/employees/{employee_id}")
+@router.get("/employees/new")
 def employee_form(request: Request, employee_id: int | None = None, db: Session = Depends(get_db)):
     emp = db.get(Employee, employee_id) if employee_id else Employee(
         first_name="", last_name="", is_officer=True, ownership_pct="0", annual_salary=0,
@@ -155,10 +155,13 @@ def expenses(request: Request, year: int | None = None, db: Session = Depends(ge
     ).all()
     totals: dict[str, int] = {}
     for e in rows:
-        totals[e.category] = totals.get(e.category, 0) + e.amount
+        label = e.account.label if e.account else "?"
+        totals[label] = totals.get(label, 0) + e.amount
     holders = db.scalars(select(Employee).order_by(Employee.last_name)).all()
     edit = db.get(Expense, int(request.query_params["edit"])) if request.query_params.get("edit") else None
-    return render(request, "expenses.html", expenses=rows, year=year, totals=totals, holders=holders, edit=edit)
+    return render(request, "expenses.html", expenses=rows, year=year, totals=sorted(totals.items()), holders=holders,
+                  edit=edit, accounts=spend_accounts(db),
+                  banks=db.scalars(select(BankAccount).where(BankAccount.active.is_(True))).all())
 
 
 @router.post("/expenses/save")
@@ -168,9 +171,11 @@ async def expense_save(request: Request, db: Session = Depends(get_db)):
     try:
         exp.date = parse_date(f.get("date"), dt.date.today())
         exp.payee = f.get("payee", "")
-        exp.category = f.get("category", "other")
-        if exp.category not in EXPENSE_CATEGORIES:
-            raise ValueError("Unknown category")
+        acct = db.get(Account, int(f.get("account_id") or 0))
+        if acct is None:
+            raise ValueError("Choose an account")
+        exp.account_id = acct.id
+        exp.paid_from_id = opt_int(f.get("paid_from_id"))
         exp.amount = parse_money(f.get("amount"))
         if exp.amount <= 0:
             raise ValueError("Amount must be greater than zero")
@@ -187,6 +192,8 @@ async def expense_save(request: Request, db: Session = Depends(get_db)):
 def expense_delete(expense_id: int, db: Session = Depends(get_db)):
     exp = db.get(Expense, expense_id)
     if exp:
+        for t in db.scalars(select(BankTransaction).where(BankTransaction.expense_id == exp.id)):
+            t.expense_id, t.status, t.created_record = None, "new", False
         db.delete(exp)
         db.commit()
     return redirect("/expenses", msg="Expense deleted")

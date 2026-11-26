@@ -11,6 +11,8 @@ def post(client, url, data, follow=True):
 
 def test_end_to_end(client):
     assert client.get("/").status_code == 200
+    for url in ["/clients/new", "/employees/new", "/books/accounts/new", "/books/journal/new"]:
+        assert client.get(url).status_code == 200, url
     post(client, "/settings", {"name": "Test Co", "ein": "12-3456789", "pay_frequency": "monthly",
                                "suta_rate_pct": "1", "suta_wage_base": "33000", "state": "WY",
                                "accounting_method": "cash", "invoice_prefix": "INV-",
@@ -63,7 +65,9 @@ def test_end_to_end(client):
                                      "pc4_ss_ee": "465", "pc4_medicare_ee": "108.75"})
     post(client, "/payroll/2/finalize", {})
 
-    post(client, "/expenses/save", {"date": today, "payee": "GitHub", "category": "software", "amount": "48"})
+    r = client.get("/expenses")
+    software = re.search(r'<option value="(\d+)" >6600 Software', r.text).group(1)
+    post(client, "/expenses/save", {"date": today, "payee": "GitHub", "account_id": software, "amount": "48"})
     post(client, "/taxes/deposits", {"date": today, "form": "941", "year": str(year), "quarter": "1", "amount": "1000"})
     for url in ["/taxes", f"/taxes/941?year={year}&quarter=1", f"/taxes/940?year={year}", f"/taxes/w2?year={year}",
                 f"/taxes/1120s?year={year}", f"/taxes/w2.csv?year={year}", "/expenses", "/payroll", "/clients/1", "/settings"]:
