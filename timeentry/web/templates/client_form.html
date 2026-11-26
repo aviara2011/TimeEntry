@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ client.name or "New client" }}</h1>
+<form class="card" method="post" action="/clients/save">
+<input type="hidden" name="id" value="{{ client.id or '' }}">
+<div class="row"><label>Name <input name="name" value="{{ client.name or '' }}" required></label>
+<label>Contact person <input name="contact" value="{{ client.contact or '' }}"></label>
+<label>Email <input name="email" type="email" value="{{ client.email or '' }}"></label></div>
+<div class="row" style="margin-top:10px"><label>Billing address <textarea name="address">{{ client.address or '' }}</textarea></label></div>
+<div class="row" style="margin-top:10px"><label>Default hourly rate ($) <input name="default_rate" value="{{ client.default_rate|cents }}"></label>
+<label>Payment terms (days, blank = company default) <input name="terms_days" value="{{ client.terms_days if client.terms_days is not none else '' }}"></label>
+<label class="check"><input type="checkbox" name="active" {{ 'checked' if client.active }}> Active</label></div>
+<p><button>Save client</button></p>
+</form>
+{% if client.id %}
+<h2>Projects</h2>
+<div class="table-wrap"><table>
+<tr><th>Project</th><th>Hourly rate ($, blank = client default)</th><th>Active</th><th></th></tr>
+{% for p in client.projects %}
+<tr><td><form id="pf{{ p.id }}" method="post" action="/projects/save"><input type="hidden" name="id" value="{{ p.id }}"></form>
+<input form="pf{{ p.id }}" name="name" value="{{ p.name }}" style="text-align:left"></td>
+<td><input form="pf{{ p.id }}" name="rate" value="{{ p.rate|cents if p.rate is not none else '' }}" placeholder="{{ client.default_rate|cents }}"></td>
+<td><input form="pf{{ p.id }}" type="checkbox" name="active" {{ 'checked' if p.active }}></td><td><button form="pf{{ p.id }}" class="small secondary">Save</button></td></tr>
+{% endfor %}
+<tr><td><form id="pfnew" method="post" action="/projects/save"><input type="hidden" name="client_id" value="{{ client.id }}"></form>
+<input form="pfnew" name="name" placeholder="New project name" style="text-align:left"></td><td><input form="pfnew" name="rate" placeholder="{{ client.default_rate|cents }}"></td><td></td><td><button form="pfnew" class="small">Add project</button></td></tr>
+</table></div>
+<p><a href="/invoices/new?client_id={{ client.id }}">Invoice unbilled time for this client →</a></p>
+{% endif %}
+{% endblock %}

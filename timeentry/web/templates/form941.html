@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar no-print"><a href="/taxes?year={{ f.year }}">← Taxes</a><span class="spacer"></span>
+{% for q in range(1, 5) %}<a class="btn small {{ '' if q == f.quarter else 'secondary' }}" href="/taxes/941?year={{ f.year }}&quarter={{ q }}">Q{{ q }}</a>{% endfor %}<button class="small secondary" onclick="window.print()">Print</button></div>
+<h1>Form 941 worksheet: Q{{ f.quarter }} {{ f.year }}</h1>
+<p class="muted">{{ company.name }} · EIN {{ company.ein or '(set in Settings)' }} · due {{ f.due_date|date }}</p>
+{% if f.no_wages %}<div class="note">No finalized wages this quarter. You still have to file a 941 (enter zeros) unless you've filed a final return or are a seasonal employer.</div>{% endif %}
+<div class="card"><dl class="form">
+<dt>Line 1</dt><dd>Employees paid for the pay period including {{ f.months[2] }} 12</dd><dd class="amt">{{ f.line1_employees }}</dd>
+<dt>Line 2</dt><dd>Wages, tips, and other compensation</dd><dd class="amt">{{ f.line2_wages|money }}</dd>
+<dt>Line 3</dt><dd>Federal income tax withheld</dd><dd class="amt">{{ f.line3_fit|money }}</dd>
+<dt>Line 5a</dt><dd>Taxable social security wages {{ f.line5a_ss_wages|money }} × 0.124</dd><dd class="amt">{{ f.line5a_tax|money }}</dd>
+<dt>Line 5c</dt><dd>Taxable Medicare wages {{ f.line5c_medicare_wages|money }} × 0.029</dd><dd class="amt">{{ f.line5c_tax|money }}</dd>
+<dt>Line 5d</dt><dd>Wages subject to Additional Medicare {{ f.line5d_addl_wages|money }} × 0.009</dd><dd class="amt">{{ f.line5d_tax|money }}</dd>
+<dt>Line 5e</dt><dd>Total social security and Medicare taxes</dd><dd class="amt">{{ f.line5e|money }}</dd>
+<dt>Line 6</dt><dd>Total taxes before adjustments</dd><dd class="amt">{{ f.line6|money }}</dd>
+<dt>Line 7</dt><dd>Current quarter's adjustment for fractions of cents</dd><dd class="amt">{{ f.line7_fractions|money }}</dd>
+<dt>Line 10</dt><dd>Total taxes after adjustments</dd><dd class="amt">{{ f.line10|money }}</dd>
+<dt>Line 12</dt><dd>Total taxes after adjustments and nonrefundable credits</dd><dd class="amt">{{ f.line12|money }}</dd>
+<dt>Line 13</dt><dd>Total deposits for this quarter</dd><dd class="amt">{{ f.line13_deposits|money }}</dd>
+<dt>Line 14</dt><dd>Balance due</dd><dd class="amt">{{ f.line14_balance_due|money }}</dd>
+<dt>Line 15</dt><dd>Overpayment</dd><dd class="amt">{{ f.line15_overpayment|money }}</dd>
+</dl></div>
+<h2>Part 2: deposit schedule</h2>
+<div class="card">
+{% if f.line12 < 250000 %}<p>Line 12 is under $2,500. Check the first box on line 16; you don't need to fill in monthly amounts.</p>{% else %}<p>Monthly schedule depositor: check the second box on line 16 and enter:</p>{% endif %}
+<dl class="form">{% for m in f.months %}<dt>Month {{ loop.index }}</dt><dd>{{ m }}</dd><dd class="amt">{{ f.month_liability[loop.index0]|money }}</dd>{% endfor %}
+<dt>Total</dt><dd>Must equal line 12</dd><dd class="amt">{{ f.month_liability|sum|money }}</dd></dl>
+</div>
+<p class="muted small">File on paper or through an IRS-authorized e-file provider. Make sure line 13 matches what you actually paid through EFTPS.</p>
+{% endblock %}

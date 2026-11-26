@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Invoice {{ inv.number }}</h1><span class="badge {{ inv.status }}">{{ inv.status }}</span><span class="spacer"></span>
+<a class="btn secondary" href="/invoices/{{ inv.id }}/print" target="_blank">Print / PDF</a>
+<form class="inline" method="post" action="/invoices/{{ inv.id }}/status">
+{% if inv.status == 'draft' %}<button name="action" value="send">Mark as sent</button>
+<button class="danger" name="action" value="delete" onclick="return confirm('Delete this draft? Its time entries become unbilled again.')">Delete draft</button>{% endif %}
+{% if inv.status == 'sent' and not inv.payments %}<button class="secondary" name="action" value="reopen">Back to draft</button>{% endif %}
+{% if inv.status in ['draft', 'sent'] and not inv.payments %}<button class="danger" name="action" value="void" onclick="return confirm('Void this invoice?')">Void</button>{% endif %}
+</form></div>
+<div class="grid">
+<div class="card"><strong>{{ inv.client.name }}</strong><div class="pre muted">{{ inv.client.address }}</div><div class="muted">{{ inv.client.email }}</div></div>
+<form class="card" method="post" action="/invoices/{{ inv.id }}/update">
+<div class="row"><label>Issued <input type="date" name="issue_date" value="{{ inv.issue_date }}"></label><label>Due <input type="date" name="due_date" value="{{ inv.due_date }}"></label></div>
+<label style="margin-top:8px">Notes on invoice <textarea name="notes">{{ inv.notes }}</textarea></label>
+<p style="margin-bottom:0"><button class="small secondary">Save</button></p></form>
+<div class="card stat"><div class="label">Total</div><div class="value">{{ inv.total|money }}</div><div class="label">Balance due</div><div class="value">{{ inv.balance|money }}</div></div>
+</div>
+<div class="table-wrap"><table>
+<tr><th>Date</th><th>Description</th><th class="num">Qty / Hours</th><th class="num">Rate</th><th class="num">Amount</th><th></th></tr>
+{% for l in inv.lines %}
+<tr><td>{{ l.date|date }}</td><td>{{ l.description }}</td><td class="num">{{ l.quantity }}</td><td class="num">{{ l.unit_price|money }}</td><td class="num">{{ l.amount|money }}</td>
+<td>{% if inv.status == 'draft' %}<form class="inline" method="post" action="/invoices/{{ inv.id }}/lines/{{ l.id }}/delete"><button class="small danger">Remove</button></form>{% endif %}</td></tr>
+{% endfor %}
+{% if inv.status == 'draft' %}
+<tr><td><form id="lf" method="post" action="/invoices/{{ inv.id }}/lines"></form><input form="lf" type="date" name="date" style="text-align:left"></td><td><input form="lf" name="description" placeholder="Fixed fee, expense reimbursement…" style="text-align:left"></td>
+<td><input form="lf" name="quantity" value="1"></td><td><input form="lf" name="unit_price" placeholder="0.00"></td><td></td><td><button form="lf" class="small">Add line</button></td></tr>
+{% endif %}
+<tr class="total"><td colspan="4">Total</td><td class="num">{{ inv.total|money }}</td><td></td></tr>
+</table></div>
+{% if inv.status in ['sent', 'paid'] %}
+<h2>Payments</h2>
+<div class="table-wrap"><table>
+<tr><th>Date</th><th>Method</th><th>Memo</th><th class="num">Amount</th><th></th></tr>
+{% for p in inv.payments %}<tr><td>{{ p.date|date }}</td><td>{{ p.method }}</td><td>{{ p.memo }}</td><td class="num">{{ p.amount|money }}</td>
+<td><form class="inline" method="post" action="/invoices/{{ inv.id }}/payments/{{ p.id }}/delete" onsubmit="return confirm('Delete payment?')"><button class="small danger">Delete</button></form></td></tr>{% endfor %}
+{% if inv.balance > 0 %}
+<tr><td><form id="payf" method="post" action="/invoices/{{ inv.id }}/payments"></form><input form="payf" type="date" name="date" value="{{ today }}" style="text-align:left"></td>
+<td><select form="payf" name="method"><option>ACH</option><option>Check</option><option>Wire</option><option>Card</option><option>Other</option></select></td>
+<td><input form="payf" name="memo" placeholder="Check # / reference" style="text-align:left"></td><td><input form="payf" name="amount" value="{{ inv.balance|cents }}"></td><td><button form="payf" class="small">Record payment</button></td></tr>
+{% endif %}
+</table></div>
+{% endif %}
+{% endblock %}

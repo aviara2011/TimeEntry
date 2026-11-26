@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Settings</h1>
+<form method="post" action="/settings">
+<div class="card"><h3 style="margin-top:0">Company</h3>
+<div class="row"><label style="flex:2 1 240px">Legal name <input name="name" value="{{ company.name }}"></label><label>EIN <input name="ein" value="{{ company.ein }}" placeholder="12-3456789"></label></div>
+<div class="row" style="margin-top:10px"><label style="flex:2 1 240px">Address <textarea name="address">{{ company.address }}</textarea></label>
+<label>Phone <input name="phone" value="{{ company.phone }}"></label><label>Email <input name="email" value="{{ company.email }}"></label></div>
+<div class="row" style="margin-top:10px"><label>Tax accounting method <select name="accounting_method"><option value="cash" {{ 'selected' if company.accounting_method == 'cash' }}>Cash (income when paid)</option><option value="accrual" {{ 'selected' if company.accounting_method == 'accrual' }}>Accrual (income when invoiced)</option></select></label></div>
+</div>
+<div class="card"><h3 style="margin-top:0">Payroll</h3>
+<div class="row"><label>Pay frequency <select name="pay_frequency">{% for k, n in PAY_FREQUENCIES.items() %}<option value="{{ k }}" {{ 'selected' if company.pay_frequency == k }}>{{ k|capitalize }} ({{ n }}/yr)</option>{% endfor %}</select></label>
+<label>State <input name="state" value="{{ company.state }}" maxlength="2"></label>
+<label>State UI account # <input name="state_account_no" value="{{ company.state_account_no }}"></label>
+<label>State UI rate (%) <input name="suta_rate_pct" value="{{ company.suta_rate_pct }}"></label>
+<label>State UI taxable wage base ($, 0 = none) <input name="suta_wage_base" value="{{ company.suta_wage_base|cents }}"></label></div>
+<p class="muted small" style="margin-bottom:0">Wyoming has no state income tax. Use the UI rate and taxable wage base on your Wyoming Department of Workforce Services rate notice; both change each year. Wyoming workers' comp is a separate state fund and isn't calculated here.</p>
+</div>
+<div class="card"><h3 style="margin-top:0">Invoices</h3>
+<div class="row"><label>Number prefix <input name="invoice_prefix" value="{{ company.invoice_prefix }}"></label><label>Next number <input name="next_invoice_number" type="number" value="{{ company.next_invoice_number }}"></label>
+<label>Default terms (days) <input name="payment_terms_days" type="number" value="{{ company.payment_terms_days }}"></label></div>
+<label style="margin-top:10px">Footer / payment instructions <textarea name="invoice_footer">{{ company.invoice_footer }}</textarea></label>
+</div>
+<button>Save settings</button>
+</form>
+<div class="card" style="margin-top:16px"><h3 style="margin-top:0">Backup</h3>
+<p>All your data is in one SQLite file. Download a backup regularly and keep it somewhere safe, such as an encrypted drive or cloud storage. It contains SSNs.</p>
+<a class="btn secondary" href="/backup">Download backup</a></div>
+{% endblock %}

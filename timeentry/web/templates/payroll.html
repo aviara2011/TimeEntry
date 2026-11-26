@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Payroll</h1>
+<form class="card" method="post" action="/payroll/create">
+<h3 style="margin-top:0">New pay run <span class="muted small">({{ company.pay_frequency }})</span></h3>
+<div class="row"><label>Period start <input type="date" name="period_start" value="{{ start }}"></label><label>Period end <input type="date" name="period_end" value="{{ end }}"></label>
+<label>Pay date <input type="date" name="pay_date" value="{{ pay }}"></label><label style="flex:2 1 200px">Memo <input name="memo"></label></div>
+<div class="row" style="margin-top:10px"><label class="check"><input type="checkbox" name="historical"> Historical pay run: I'll type in the amounts from QuickBooks paystubs</label><button>Create draft</button></div>
+<p class="muted small" style="margin-bottom:0">Taxes are calculated with the {{ years|join(', ') }} federal tables. Pay date sets the tax year and quarter.</p>
+</form>
+<div class="table-wrap"><table>
+<tr><th>Pay date</th><th>Period</th><th>Status</th><th class="num">Gross</th><th class="num">Employee taxes</th><th class="num">Net pay</th><th class="num">Employer taxes</th><th class="num">941 liability</th></tr>
+{% for r in runs %}
+<tr><td><a href="/payroll/{{ r.id }}">{{ r.pay_date|date }}</a></td><td>{{ r.period_start|date }} – {{ r.period_end|date }}</td><td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+<td class="num">{{ r.paychecks|sum(attribute='gross')|money }}</td><td class="num">{{ r.paychecks|sum(attribute='employee_taxes')|money }}</td>
+<td class="num">{{ r.paychecks|sum(attribute='net')|money }}</td><td class="num">{{ r.paychecks|sum(attribute='employer_taxes')|money }}</td><td class="num">{{ r.paychecks|sum(attribute='liability_941')|money }}</td></tr>
+{% else %}<tr><td colspan="8" class="muted">No pay runs yet.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

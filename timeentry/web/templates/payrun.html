@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+{% set draft = run.status == 'draft' %}
+<div class="toolbar"><h1 style="margin:0">Pay run {{ run.pay_date|date }}</h1><span class="badge {{ run.status }}">{{ run.status }}</span><span class="spacer"></span>
+<a class="btn secondary" href="/payroll/{{ run.id }}/stubs" target="_blank">Pay stubs</a>
+{% if draft %}<form class="inline" method="post" action="/payroll/{{ run.id }}/finalize"><button>Finalize</button></form>
+<form class="inline" method="post" action="/payroll/{{ run.id }}/delete" onsubmit="return confirm('Delete this draft?')"><button class="danger">Delete</button></form>
+{% else %}<form class="inline" method="post" action="/payroll/{{ run.id }}/reopen" onsubmit="return confirm('Reopen? Only do this to correct a mistake before you have filed for this quarter.')"><button class="secondary">Reopen</button></form>{% endif %}
+</div>
+{% if later %}<div class="note">{{ later|length }} later pay run(s) this year are already final. After finalizing this one, reopen and re-finalize them so their wage-base limits are recalculated.</div>{% endif %}
+<form method="post" action="/payroll/{{ run.id }}/save">
+<div class="card row"><label>Period start <input type="date" name="period_start" value="{{ run.period_start }}" {{ 'disabled' if not draft }}></label>
+<label>Period end <input type="date" name="period_end" value="{{ run.period_end }}" {{ 'disabled' if not draft }}></label>
+<label>Pay date <input type="date" name="pay_date" value="{{ run.pay_date }}" {{ 'disabled' if not draft }}></label>
+<label style="flex:2 1 200px">Memo <input name="memo" value="{{ run.memo }}" {{ 'disabled' if not draft }}></label></div>
+<div class="table-wrap"><table>
+<tr><th></th>{% for pc in run.paychecks %}<th class="num">{{ pc.employee.name }}{% if draft %} <button class="small danger" formaction="/payroll/{{ run.id }}/remove/{{ pc.id }}" title="Remove from this run">×</button>{% endif %}</th>{% endfor %}<th class="num">Total</th></tr>
+{% macro money_row(label, field, input=None, manual_only=False, help='') %}
+<tr><td>{{ label }}{% if help %}<div class="muted small">{{ help }}</div>{% endif %}</td>
+{% for pc in run.paychecks %}<td class="num">{% if draft and input and (not manual_only or pc.manual) %}<input name="pc{{ pc.id }}_{{ input }}" value="{{ pc[field]|cents }}">{% else %}{{ pc[field]|money }}{% endif %}</td>{% endfor %}
+<td class="num">{{ run.paychecks|sum(attribute=field)|money }}</td></tr>
+{% endmacro %}
+{{ money_row('Gross wages', 'gross', 'gross') }}
+{{ money_row('2% shareholder health premiums', 'shareholder_health', 'health', help='Paid by the company; W-2 box 1 only') }}
+<tr><td>Taxes entered manually<div class="muted small">Tick to type in withholding from old paystubs</div></td>{% for pc in run.paychecks %}<td class="num"><input type="checkbox" name="pc{{ pc.id }}_manual" {{ 'checked' if pc.manual }} {{ 'disabled' if not draft }}></td>{% endfor %}<td></td></tr>
+{{ money_row('Federal income tax', 'fit', 'fit', True) }}
+{{ money_row('Social Security (6.2%)', 'ss_ee', 'ss_ee', True) }}
+{{ money_row('Medicare (1.45%)', 'medicare_ee', 'medicare_ee', True) }}
+{{ money_row('Additional Medicare (0.9%)', 'addl_medicare', 'addl_medicare', True) }}
+<tr class="total"><td>Net pay</td>{% for pc in run.paychecks %}<td class="num">{{ pc.net|money }}</td>{% endfor %}<td class="num">{{ run.paychecks|sum(attribute='net')|money }}</td></tr>
+<tr><td colspan="{{ run.paychecks|length + 2 }}"><strong>Employer taxes</strong></td></tr>
+{{ money_row('Social Security (6.2%)', 'ss_er') }}
+{{ money_row('Medicare (1.45%)', 'medicare_er') }}
+{{ money_row('FUTA (0.6%)', 'futa') }}
+{{ money_row('State unemployment (' ~ company.state ~ ' ' ~ company.suta_rate_pct ~ '%)', 'suta') }}
+<tr class="total"><td>Form 941 liability (deposit via EFTPS)</td>{% for pc in run.paychecks %}<td class="num">{{ pc.liability_941|money }}</td>{% endfor %}<td class="num">{{ run.paychecks|sum(attribute='liability_941')|money }}</td></tr>
+<tr class="total"><td>Total cost to company</td>{% for pc in run.paychecks %}<td class="num">{{ (pc.gross + pc.shareholder_health + pc.employer_taxes)|money }}</td>{% endfor %}<td class="num">{{ (run.paychecks|sum(attribute='gross') + run.paychecks|sum(attribute='shareholder_health') + run.paychecks|sum(attribute='employer_taxes'))|money }}</td></tr>
+</table></div>
+{% if draft %}<button>Save &amp; recalculate</button>{% endif %}
+</form>
+<p class="muted small">Pay net pay from the business account. Deposit the 941 liability through EFTPS by the 15th of next month (monthly depositor), then record it under <a href="/taxes">Taxes</a>. FUTA is deposited once it passes $500 for the year, otherwise it's paid with Form 940.</p>
+{% endblock %}

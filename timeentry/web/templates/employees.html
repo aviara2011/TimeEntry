@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Employees &amp; shareholders</h1><span class="spacer"></span><a class="btn" href="/employees/new">Add employee</a></div>
+<div class="table-wrap"><table>
+<tr><th>Name</th><th>SSN</th><th>Officer</th><th class="num">Ownership</th><th class="num">Annual salary</th><th class="num">Per {{ company.pay_frequency }} paycheck</th><th>W-4</th><th></th></tr>
+{% for e in employees %}
+<tr><td><a href="/employees/{{ e.id }}">{{ e.name }}</a></td><td>{{ e.ssn_masked }}</td><td>{{ 'Yes' if e.is_officer else 'No' }}</td><td class="num">{{ e.ownership_pct }}%</td>
+<td class="num">{{ e.annual_salary|money }}</td><td class="num">{{ ((e.annual_salary / PAY_FREQUENCIES[company.pay_frequency])|round|int)|money }}</td>
+<td>{{ e.filing_status|upper }}{{ ', Step 2' if e.w4_step2 }}{{ ', exempt' if e.w4_exempt }}</td><td>{% if not e.active %}<span class="badge">inactive</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8" class="muted">Add yourself and the other owner. Owners who work in the business are officer-employees and are paid through payroll.</td></tr>{% endfor %}
+</table></div>
+<p class="muted small">Ownership percentages split S-Corp income on the K-1s and should add up to 100%.</p>
+{% endblock %}

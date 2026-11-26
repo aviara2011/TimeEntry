@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Federal taxes {{ year }}</h1><span class="spacer"></span>
+<a class="btn secondary small" href="/taxes?year={{ year - 1 }}">← {{ year - 1 }}</a><a class="btn secondary small" href="/taxes?year={{ year + 1 }}">{{ year + 1 }} →</a></div>
+<p class="muted">These worksheets give you the numbers for each form. File them yourself through IRS/SSA (or hand them to your CPA). Nothing here is e-filed. Only <strong>finalized</strong> pay runs are counted.</p>
+
+<h2>Form 941: quarterly payroll taxes</h2>
+<div class="table-wrap"><table>
+<tr><th>Quarter</th><th class="num">Wages (line 2)</th><th class="num">Income tax (line 3)</th><th class="num">Total tax (line 12)</th><th class="num">Deposits (line 13)</th><th class="num">Balance due</th><th>Due</th><th></th></tr>
+{% for q in quarters %}<tr><td>Q{{ q.quarter }}</td><td class="num">{{ q.line2_wages|money }}</td><td class="num">{{ q.line3_fit|money }}</td><td class="num">{{ q.line12|money }}</td>
+<td class="num">{{ q.line13_deposits|money }}</td><td class="num">{{ q.line14_balance_due|money }}{% if q.line15_overpayment %} <span class="muted">(over {{ q.line15_overpayment|money }})</span>{% endif %}</td><td>{{ q.due_date|date }}</td>
+<td><a class="btn secondary small" href="/taxes/941?year={{ year }}&quarter={{ q.quarter }}">Worksheet</a></td></tr>{% endfor %}
+</table></div>
+
+<h2>Annual forms</h2>
+<div class="grid">
+<div class="card"><strong>Form 940: FUTA</strong><div class="muted">Tax {{ f940.line12|money }} · deposits {{ f940.line13_deposits|money }} · due {{ f940.due_date|date }}</div><p><a class="btn secondary small" href="/taxes/940?year={{ year }}">Worksheet</a></p></div>
+<div class="card"><strong>W-2s and W-3</strong><div class="muted">Give W-2s to employees and file them with SSA (Business Services Online) by Jan 31</div><p><a class="btn secondary small" href="/taxes/w2?year={{ year }}">W-2 worksheet</a></p></div>
+<div class="card"><strong>Form 1120-S and K-1s</strong><div class="muted">S-Corp income tax return, due March 15</div><p><a class="btn secondary small" href="/taxes/1120s?year={{ year }}">1120-S worksheet</a></p></div>
+</div>
+
+<h2>EFTPS deposits</h2>
+<form class="card row" method="post" action="/taxes/deposits">
+<input type="hidden" name="year" value="{{ year }}">
+<label style="flex:0 1 150px">Date paid <input type="date" name="date" value="{{ today }}"></label>
+<label style="flex:0 1 110px">Form <select name="form"><option>941</option><option>940</option></select></label>
+<label style="flex:0 1 110px">Quarter <select name="quarter"><option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option></select></label>
+<label style="flex:0 1 140px">Amount ($) <input name="amount"></label><label>EFTPS confirmation # <input name="confirmation"></label><button>Record deposit</button>
+</form>
+<div class="table-wrap"><table>
+<tr><th>Date</th><th>Form</th><th>Period</th><th>Confirmation</th><th class="num">Amount</th><th></th></tr>
+{% for d in deposits %}<tr><td>{{ d.date|date }}</td><td>{{ d.form }}</td><td>{{ d.year }}{{ ' Q' ~ d.quarter if d.quarter }}</td><td>{{ d.confirmation }}</td><td class="num">{{ d.amount|money }}</td>
+<td><form class="inline" method="post" action="/taxes/deposits/{{ d.id }}/delete" onsubmit="return confirm('Delete deposit?')"><button class="small danger">Delete</button></form></td></tr>
+{% else %}<tr><td colspan="6" class="muted">No deposits recorded for {{ year }}.</td></tr>{% endfor %}
+</table></div>
+<p class="muted small">Deposit rules (Pub. 15): as a monthly depositor, deposit each month's 941 taxes by the 15th of the following month. If a quarter's total is under $2,500 you may pay it with the return instead. Deposit FUTA once the unpaid amount passes $500.</p>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Expenses &amp; distributions {{ year }}</h1><span class="spacer"></span>
+<a class="btn secondary small" href="/expenses?year={{ year - 1 }}">← {{ year - 1 }}</a><a class="btn secondary small" href="/expenses?year={{ year + 1 }}">{{ year + 1 }} →</a></div>
+<form class="card" method="post" action="/expenses/save">
+<input type="hidden" name="id" value="{{ edit.id if edit else '' }}">
+<div class="row"><label style="flex:0 1 150px">Date <input type="date" name="date" value="{{ (edit.date if edit else today).isoformat() }}"></label>
+<label>Payee <input name="payee" value="{{ edit.payee if edit else '' }}"></label>
+<label style="flex:2 1 240px">Category <select name="category">{% for k, (label, line) in EXPENSE_CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if edit and edit.category == k }}>{{ label }} ({{ 'Sched. ' if line.startswith('K') }}{{ 'line ' if not line.startswith('K') }}{{ line }})</option>{% endfor %}</select></label>
+<label style="flex:0 1 130px">Amount ($) <input name="amount" value="{{ edit.amount|cents if edit else '' }}"></label></div>
+<div class="row" style="margin-top:10px"><label style="flex:2 1 240px">Memo <input name="memo" value="{{ edit.memo if edit else '' }}"></label>
+<label>Shareholder (for distributions) <select name="shareholder_id"><option value="">—</option>{% for h in holders %}<option value="{{ h.id }}" {{ 'selected' if edit and edit.shareholder_id == h.id }}>{{ h.name }}</option>{% endfor %}</select></label>
+<button>{{ "Save" if edit else "Add" }}</button>{% if edit %}<a class="btn secondary" href="/expenses?year={{ year }}">Cancel</a>{% endif %}</div>
+<p class="muted small" style="margin-bottom:0">Record business expenses paid from company accounts here. Payroll and employer payroll taxes come from Payroll automatically, so don't enter them again. Owner distributions aren't deductible but go on Schedule K and each K-1.</p>
+</form>
+<div class="grid">
+{% for k, amt in totals.items() %}<div class="card stat"><div class="label">{{ EXPENSE_CATEGORIES[k][0] }}</div><div class="value" style="font-size:1.1rem">{{ amt|money }}</div></div>{% endfor %}
+</div>
+<div class="table-wrap"><table>
+<tr><th>Date</th><th>Payee</th><th>Category</th><th>Memo</th><th class="num">Amount</th><th></th></tr>
+{% for e in expenses %}
+<tr><td>{{ e.date|date }}</td><td>{{ e.payee }}</td><td>{{ EXPENSE_CATEGORIES.get(e.category, ('Other',))[0] }}{% if e.shareholder %} — {{ e.shareholder.name }}{% endif %}</td><td>{{ e.memo }}</td><td class="num">{{ e.amount|money }}</td>
+<td style="white-space:nowrap"><a class="btn secondary small" href="/expenses?year={{ year }}&edit={{ e.id }}">Edit</a>
+<form class="inline" method="post" action="/expenses/{{ e.id }}/delete" onsubmit="return confirm('Delete?')"><button class="small danger">Delete</button></form></td></tr>
+{% else %}<tr><td colspan="6" class="muted">No expenses recorded for {{ year }}.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

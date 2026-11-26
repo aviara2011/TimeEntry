@@ -1,0 +1,17 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice {{ inv.number }}</title><link rel="stylesheet" href="/static/style.css">
+<style>body{background:#fff}</style></head>
+<body><main>
+<p class="no-print"><button onclick="window.print()">Print or save as PDF</button> <a href="/invoices/{{ inv.id }}">Back</a></p>
+<div class="invoice-doc">
+<div class="head"><div><strong style="font-size:1.2rem">{{ company.name }}</strong><div class="pre">{{ company.address }}</div><div>{{ company.phone }}</div><div>{{ company.email }}</div></div>
+<div style="text-align:right"><h1>INVOICE</h1><div>No. <strong>{{ inv.number }}</strong></div><div>Date: {{ inv.issue_date|date }}</div><div>Due: {{ inv.due_date|date }}</div></div></div>
+<div style="margin-bottom:24px"><div style="color:#555;font-size:.8rem;text-transform:uppercase">Bill to</div><strong>{{ inv.client.name }}</strong>{% if inv.client.contact %}<div>Attn: {{ inv.client.contact }}</div>{% endif %}<div class="pre">{{ inv.client.address }}</div></div>
+<table><tr><th>Date</th><th>Description</th><th class="num">Hours / Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+{% for l in inv.lines %}<tr><td style="white-space:nowrap">{{ l.date.strftime('%m/%d/%Y') if l.date else '' }}</td><td>{{ l.description }}</td><td class="num">{{ l.quantity }}</td><td class="num">{{ l.unit_price|money }}</td><td class="num">{{ l.amount|money }}</td></tr>{% endfor %}
+<tr class="total"><td colspan="4">Total</td><td class="num">{{ inv.total|money }}</td></tr>
+{% if inv.paid %}<tr><td colspan="4">Payments received</td><td class="num">-{{ inv.paid|money }}</td></tr>{% endif %}
+<tr class="total"><td colspan="4">Balance due</td><td class="num">{{ inv.balance|money }}</td></tr></table>
+{% if inv.notes %}<p class="pre">{{ inv.notes }}</p>{% endif %}
+<p class="pre" style="color:#555">{{ company.invoice_footer }}</p>
+</div></main></body></html>

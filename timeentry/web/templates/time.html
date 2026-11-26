@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+{% set back = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+<h1>Time</h1>
+{% for e in running %}
+<div class="card row"><div style="flex:1"><strong>Timer running</strong> — {{ e.project.label }} since {{ e.timer_started_at.strftime('%I:%M %p') }}{% if e.description %} · {{ e.description }}{% endif %}</div>
+<form method="post" action="/time/timer/{{ e.id }}/stop"><input type="hidden" name="back" value="{{ back }}"><button>Stop</button></form></div>
+{% endfor %}
+{% if not projects %}<div class="note">Add a <a href="/clients/new">client</a> and a project before logging time.</div>{% endif %}
+<form class="card" method="post" action="/time/save">
+<input type="hidden" name="back" value="{{ back }}"><input type="hidden" name="id" value="{{ edit.id if edit else '' }}">
+<h3 style="margin-top:0">{{ "Edit entry" if edit else "Log time" }}</h3>
+<div class="row">
+<label style="flex:0 1 150px">Date <input type="date" name="date" value="{{ (edit.date if edit else today).isoformat() }}"></label>
+<label style="flex:2 1 220px">Project <select name="project_id" required><option value="">Choose…</option>
+{% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if edit and edit.project_id == p.id }}>{{ p.label }}</option>{% endfor %}</select></label>
+<label>Who <select name="employee_id"><option value="">—</option>
+{% for emp in employees %}<option value="{{ emp.id }}" {{ 'selected' if (edit and edit.employee_id == emp.id) or (not edit and last_employee == emp.id|string) }}>{{ emp.name }}</option>{% endfor %}</select></label>
+<label style="flex:0 1 110px">Hours <input name="hours" value="{{ edit.minutes|hours if edit else '' }}" placeholder="1.5 or 1:30"></label>
+</div>
+<div class="row" style="margin-top:10px">
+<label style="flex:4 1 300px">Description <input name="description" value="{{ edit.description if edit else '' }}"></label>
+<label class="check"><input type="checkbox" name="billable" {{ 'checked' if not edit or edit.billable }}> Billable</label>
+<button>{{ "Save" if edit else "Add" }}</button>
+<button formaction="/time/timer/start" class="secondary" title="Starts a timer for the chosen project">Start timer</button>
+{% if edit %}<a class="btn secondary" href="/time?start={{ start }}&end={{ end }}">Cancel</a>{% endif %}
+</div>
+</form>
+
+<form class="toolbar" method="get" action="/time">
+<a class="btn secondary small" href="/time?start={{ prev_start }}&end={{ prev_start + (end - start) }}">← Prev</a>
+<strong>{{ start|date }} – {{ end|date }}</strong>
+<a class="btn secondary small" href="/time?start={{ next_start }}&end={{ next_start + (end - start) }}">Next →</a>
+<span class="spacer"></span>
+<input type="date" name="start" value="{{ start }}" style="width:auto"><input type="date" name="end" value="{{ end }}" style="width:auto">
+<select name="client_id" style="width:auto"><option value="">All clients</option>{% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if client_id == c.id }}>{{ c.name }}</option>{% endfor %}</select>
+<select name="employee_id" style="width:auto"><option value="">Everyone</option>{% for emp in employees %}<option value="{{ emp.id }}" {{ 'selected' if employee_id == emp.id }}>{{ emp.name }}</option>{% endfor %}</select>
+<button class="small">Filter</button>
+<a class="btn secondary small" href="/time/export.csv?start={{ start }}&end={{ end }}&client_id={{ client_id or '' }}&employee_id={{ employee_id or '' }}">CSV</a>
+</form>
+
+<div class="grid">
+<div class="card stat"><div class="label">Total hours</div><div class="value">{{ total_minutes|hours }}</div></div>
+<div class="card stat"><div class="label">Billable value</div><div class="value">{{ billable_amount|money }}</div></div>
+<div class="card small">{% for label, m in by_project %}<div class="row" style="justify-content:space-between"><span>{{ label }}</span><span>{{ m|hours }} h</span></div>{% else %}<span class="muted">No time in this range.</span>{% endfor %}</div>
+</div>
+
+<div class="table-wrap"><table>
+<tr><th>Date</th><th>Project</th><th>Who</th><th>Description</th><th class="num">Hours</th><th class="num">Amount</th><th>Status</th><th></th></tr>
+{% for e in entries %}
+<tr><td>{{ e.date.strftime('%a %b %d') }}</td><td>{{ e.project.label }}</td><td>{{ e.employee.first_name if e.employee else '' }}</td><td>{{ e.description }}</td>
+<td class="num">{{ e.minutes|hours }}</td>
+<td class="num">{% if e.billable %}{{ amount_for_minutes(e.minutes, e.project.effective_rate)|money }}{% else %}<span class="muted">non-billable</span>{% endif %}</td>
+<td>{% if e.timer_started_at %}<span class="badge sent">running</span>{% elif e.invoice_id %}<a class="badge paid" href="/invoices/{{ e.invoice_id }}">invoiced</a>{% endif %}</td>
+<td style="white-space:nowrap">{% if not e.invoice_id %}<a class="btn secondary small" href="/time?start={{ start }}&end={{ end }}&edit={{ e.id }}">Edit</a>
+<form class="inline" method="post" action="/time/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')"><input type="hidden" name="back" value="{{ back }}"><button class="small danger">Delete</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8" class="muted">No entries.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

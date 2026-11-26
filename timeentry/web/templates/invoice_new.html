@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>New invoice</h1>
+<form class="card row" method="get" action="/invoices/new">
+<label style="flex:2 1 220px">Client <select name="client_id" required><option value="">Choose…</option>
+{% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if client and client.id == c.id }}>{{ c.name }}</option>{% endfor %}</select></label>
+<label>Time from <input type="date" name="start" value="{{ start or '' }}"></label>
+<label>Time through <input type="date" name="end" value="{{ end or '' }}"></label>
+<button class="secondary">Show unbilled time</button>
+</form>
+{% if client %}
+<form method="post" action="/invoices/create">
+<input type="hidden" name="client_id" value="{{ client.id }}">
+<div class="table-wrap"><table>
+<tr><th><input type="checkbox" checked onclick="document.querySelectorAll('.pick').forEach(c=>c.checked=this.checked)"></th><th>Date</th><th>Project</th><th>Who</th><th>Description</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+{% set ns = namespace(total=0, minutes=0) %}
+{% for e in entries %}{% set amt = amount_for_minutes(e.minutes, e.project.effective_rate) %}{% set ns.total = ns.total + amt %}{% set ns.minutes = ns.minutes + e.minutes %}
+<tr><td><input class="pick" type="checkbox" name="entry_ids" value="{{ e.id }}" checked></td><td>{{ e.date|date }}</td><td>{{ e.project.name }}</td><td>{{ e.employee.first_name if e.employee else '' }}</td><td>{{ e.description }}</td>
+<td class="num">{{ e.minutes|hours }}</td><td class="num">{{ e.project.effective_rate|money }}</td><td class="num">{{ amt|money }}</td></tr>
+{% else %}<tr><td colspan="8" class="muted">No unbilled billable time for {{ client.name }} in this range. You can still create an invoice and add fixed-fee lines.</td></tr>{% endfor %}
+<tr class="total"><td colspan="5">Total</td><td class="num">{{ ns.minutes|hours }}</td><td></td><td class="num">{{ ns.total|money }}</td></tr>
+</table></div>
+<div class="row"><label style="flex:0 1 200px">Invoice date <input type="date" name="issue_date" value="{{ today }}"></label><button>Create draft invoice</button></div>
+</form>
+{% endif %}
+{% endblock %}

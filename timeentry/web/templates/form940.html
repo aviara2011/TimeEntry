@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar no-print"><a href="/taxes?year={{ f.year }}">← Taxes</a><span class="spacer"></span><button class="small secondary" onclick="window.print()">Print</button></div>
+<h1>Form 940 worksheet: {{ f.year }}</h1>
+<p class="muted">{{ company.name }} · EIN {{ company.ein or '(set in Settings)' }} · due {{ f.due_date|date }} · Part 1: state = {{ company.state }} (single state, not a credit reduction state)</p>
+<div class="card"><dl class="form">
+<dt>Line 3</dt><dd>Total payments to all employees</dd><dd class="amt">{{ f.line3_total_payments|money }}</dd>
+<dt>Line 4</dt><dd>Payments exempt from FUTA (check 4a, fringe benefits: 2% shareholder health)</dd><dd class="amt">{{ f.line4_exempt|money }}</dd>
+<dt>Line 5</dt><dd>Payments over $7,000 per employee</dd><dd class="amt">{{ f.line5_over_base|money }}</dd>
+<dt>Line 6</dt><dd>Subtotal (4 + 5)</dd><dd class="amt">{{ f.line6|money }}</dd>
+<dt>Line 7</dt><dd>Total taxable FUTA wages</dd><dd class="amt">{{ f.line7_futa_wages|money }}</dd>
+<dt>Line 8</dt><dd>FUTA tax before adjustments (× 0.006)</dd><dd class="amt">{{ f.line8_futa_tax|money }}</dd>
+<dt>Line 12</dt><dd>Total FUTA tax after adjustments</dd><dd class="amt">{{ f.line12|money }}</dd>
+<dt>Line 13</dt><dd>FUTA tax deposited for the year</dd><dd class="amt">{{ f.line13_deposits|money }}</dd>
+<dt>Line 14</dt><dd>Balance due</dd><dd class="amt">{{ f.line14_balance_due|money }}</dd>
+<dt>Line 15</dt><dd>Overpayment</dd><dd class="amt">{{ f.line15_overpayment|money }}</dd>
+</dl></div>
+<h2>Part 5: liability by quarter</h2>
+<div class="card">{% if f.line12 <= 50000 %}<p>Line 12 is $500 or less, so you can skip Part 5.</p>{% endif %}
+<dl class="form">{% for q in f.quarter_liability %}<dt>Line 16{{ 'abcd'[loop.index0] }}</dt><dd>Quarter {{ loop.index }}</dd><dd class="amt">{{ q|money }}</dd>{% endfor %}
+<dt>Line 17</dt><dd>Total (must equal line 12)</dd><dd class="amt">{{ f.quarter_liability|sum|money }}</dd></dl></div>
+<p class="muted small">Line 10 (state UI paid late, or wages excluded from state UI) isn't calculated here. If you paid your Wyoming UI late, or officers are excluded from Wyoming UI, see the Form 940 instructions for line 10 and Schedule A.</p>
+{% endblock %}

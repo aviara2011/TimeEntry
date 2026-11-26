@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ company.name }}</h1>
+{% if setup_needed %}<div class="note">Getting started: fill in <a href="/settings">company settings</a> (EIN, pay frequency, Wyoming UI rate), add the two owners under <a href="/employees">Employees</a>, then add <a href="/clients">clients</a>. If you've already run payroll this year in QuickBooks, enter it as <a href="/payroll">historical pay runs</a> so Q4 and W-2 totals are complete.</div>{% endif %}
+{% for e in running %}
+<div class="card row"><div style="flex:1"><strong>Timer running</strong> — {{ e.project.label }} since {{ e.timer_started_at.strftime('%I:%M %p') }} {{ e.description }}</div>
+<form method="post" action="/time/timer/{{ e.id }}/stop"><input type="hidden" name="back" value="/"><button>Stop timer</button></form></div>
+{% endfor %}
+<div class="grid">
+  <div class="card stat"><div class="label">Hours this week</div><div class="value">{{ week_minutes|hours }}</div></div>
+  <div class="card stat"><div class="label">Unbilled time</div><div class="value">{{ unbilled_amount|money }}</div><div class="muted small">{{ unbilled_minutes|hours }} h</div></div>
+  <div class="card stat"><div class="label">Outstanding invoices</div><div class="value">{{ ar|money }}</div><div class="muted small">{{ overdue|length }} overdue</div></div>
+  <div class="card stat"><div class="label">Received {{ today.year }}</div><div class="value">{{ ytd_receipts|money }}</div></div>
+</div>
+<div class="grid">
+<div>
+<h2>Quick actions</h2>
+<div class="card toolbar"><a class="btn" href="/time">Log time</a><a class="btn secondary" href="/invoices/new">New invoice</a><a class="btn secondary" href="/payroll">Run payroll</a><a class="btn secondary" href="/taxes">Tax forms</a></div>
+{% if overdue %}<h2>Overdue invoices</h2><div class="table-wrap"><table>
+{% for i in overdue %}<tr><td><a href="/invoices/{{ i.id }}">{{ i.number }}</a></td><td>{{ i.client.name }}</td><td>due {{ i.due_date|date }}</td><td class="num">{{ i.balance|money }}</td></tr>{% endfor %}
+</table></div>{% endif %}
+</div>
+<div>
+<h2>Upcoming deadlines</h2>
+<div class="table-wrap"><table>
+{% for d, label in deadlines %}<tr><td class="num">{{ d|date }}</td><td>{{ label }}</td></tr>{% else %}<tr><td class="muted">Nothing in the next 75 days.</td></tr>{% endfor %}
+</table></div>
+<p class="muted small">Due dates that fall on a weekend or holiday move to the next business day.</p>
+</div>
+</div>
+{% endblock %}

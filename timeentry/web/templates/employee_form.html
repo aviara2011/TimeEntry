@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ emp.name if emp.id else "Add employee" }}</h1>
+<form method="post" action="/employees/save">
+<input type="hidden" name="id" value="{{ emp.id or '' }}">
+<div class="card">
+<h3 style="margin-top:0">Person</h3>
+<div class="row"><label>First name <input name="first_name" value="{{ emp.first_name }}" required></label><label>Last name <input name="last_name" value="{{ emp.last_name }}" required></label>
+<label>SSN (for W-2s) <input name="ssn" value="" placeholder="{{ emp.ssn_masked or '123-45-6789' }}" autocomplete="off"></label></div>
+<p class="muted small" style="margin:4px 0 0">{% if emp.ssn %}Leave SSN blank to keep the one on file.{% endif %} It's stored only in your local database file.</p>
+<label style="margin-top:10px">Home address (for W-2) <textarea name="address">{{ emp.address }}</textarea></label>
+</div>
+<div class="card">
+<h3 style="margin-top:0">Pay &amp; ownership</h3>
+<div class="row"><label>Annual salary ($) <input name="annual_salary" value="{{ emp.annual_salary|cents }}"></label>
+<label>Ownership % <input name="ownership_pct" value="{{ emp.ownership_pct }}"></label>
+<label class="check"><input type="checkbox" name="is_officer" {{ 'checked' if emp.is_officer }}> Corporate officer</label>
+<label class="check"><input type="checkbox" name="suta_exempt" {{ 'checked' if emp.suta_exempt }}> Exempt from state unemployment</label>
+<label class="check"><input type="checkbox" name="active" {{ 'checked' if emp.active }}> Active</label></div>
+<p class="muted small">A shareholder-employee's salary must be "reasonable compensation" for the work they do. Check with Wyoming DWS whether officers are exempt from Wyoming UI before you tick the exemption.</p>
+</div>
+<div class="card">
+<h3 style="margin-top:0">Form W-4 (2020 or later)</h3>
+<div class="row"><label>Step 1(c) filing status <select name="filing_status">{% for k, v in FILING_STATUSES.items() %}<option value="{{ k }}" {{ 'selected' if emp.filing_status == k }}>{{ v }}</option>{% endfor %}</select></label>
+<label class="check"><input type="checkbox" name="w4_step2" {{ 'checked' if emp.w4_step2 }}> Step 2(c) checkbox (multiple jobs)</label>
+<label class="check"><input type="checkbox" name="w4_exempt" {{ 'checked' if emp.w4_exempt }}> Claims exempt</label></div>
+<div class="row" style="margin-top:10px">
+<label>Step 3 credits, annual ($) <input name="w4_step3" value="{{ emp.w4_step3|cents }}"></label>
+<label>Step 4(a) other income, annual ($) <input name="w4_step4a" value="{{ emp.w4_step4a|cents }}"></label>
+<label>Step 4(b) deductions, annual ($) <input name="w4_step4b" value="{{ emp.w4_step4b|cents }}"></label>
+<label>Step 4(c) extra withholding per paycheck ($) <input name="w4_step4c" value="{{ emp.w4_step4c|cents }}"></label></div>
+<p class="muted small">If the two of you are married to each other, both jobs are in this company, so Step 2 or Step 4(c) is how you avoid under-withholding.</p>
+</div>
+<button>Save employee</button>
+</form>
+{% endblock %}

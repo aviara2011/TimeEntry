@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}TimeEntry{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{% set path = request.url.path %}
+<header class="top"><nav>
+  <a class="brand" href="/">TimeEntry</a>
+  <a href="/time" class="{{ 'active' if path.startswith('/time') }}">Time</a>
+  <a href="/invoices" class="{{ 'active' if path.startswith('/invoices') }}">Invoices</a>
+  <a href="/clients" class="{{ 'active' if path.startswith('/clients') }}">Clients</a>
+  <a href="/payroll" class="{{ 'active' if path.startswith('/payroll') }}">Payroll</a>
+  <a href="/employees" class="{{ 'active' if path.startswith('/employees') }}">Employees</a>
+  <a href="/expenses" class="{{ 'active' if path.startswith('/expenses') }}">Expenses</a>
+  <a href="/taxes" class="{{ 'active' if path.startswith('/taxes') }}">Taxes</a>
+  <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}">Settings</a>
+</nav></header>
+<main>
+{% if msg %}<div class="flash ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

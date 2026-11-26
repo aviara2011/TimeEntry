@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar no-print"><a href="/taxes?year={{ year }}">← Taxes</a><span class="spacer"></span><a class="btn small secondary" href="/taxes/w2.csv?year={{ year }}">CSV</a><button class="small secondary" onclick="window.print()">Print</button></div>
+<h1>W-2 worksheet: {{ year }}</h1>
+<p class="muted">Employer: {{ company.name }} · EIN {{ company.ein or '(set in Settings)' }}. Enter these on SSA Business Services Online (free W-2 Online, which also generates the W-3), then print copies for each employee by January 31.</p>
+{% for w in forms %}
+<div class="card">
+<h3 style="margin-top:0">{{ w.employee.name }} <span class="muted small">{{ w.employee.ssn_masked }}</span></h3>
+<div class="pre muted small">{{ w.employee.address }}</div>
+<dl class="form">
+<dt>Box 1</dt><dd>Wages, tips, other compensation</dd><dd class="amt">{{ w.box1|money }}</dd>
+<dt>Box 2</dt><dd>Federal income tax withheld</dd><dd class="amt">{{ w.box2|money }}</dd>
+<dt>Box 3</dt><dd>Social security wages</dd><dd class="amt">{{ w.box3|money }}</dd>
+<dt>Box 4</dt><dd>Social security tax withheld</dd><dd class="amt">{{ w.box4|money }}</dd>
+<dt>Box 5</dt><dd>Medicare wages and tips</dd><dd class="amt">{{ w.box5|money }}</dd>
+<dt>Box 6</dt><dd>Medicare tax withheld (incl. Additional Medicare)</dd><dd class="amt">{{ w.box6|money }}</dd>
+{% if w.box14_health %}<dt>Box 14</dt><dd>"S-Corp health" (2% shareholder health insurance, included in box 1)</dd><dd class="amt">{{ w.box14_health|money }}</dd>{% endif %}
+<dt>Box 13</dt><dd>Retirement plan: check only if a plan covered the employee</dd><dd class="amt">—</dd>
+<dt>Box 15–17</dt><dd>{{ company.state }}: no state income tax, leave blank</dd><dd class="amt">—</dd>
+</dl></div>
+{% else %}<div class="card muted">No finalized wages for {{ year }}.</div>{% endfor %}
+{% if forms %}
+<h2>W-3 totals</h2>
+<div class="card"><dl class="form">
+<dt>Box 1</dt><dd>Wages</dd><dd class="amt">{{ w3.box1|money }}</dd><dt>Box 2</dt><dd>Federal income tax</dd><dd class="amt">{{ w3.box2|money }}</dd>
+<dt>Box 3</dt><dd>SS wages</dd><dd class="amt">{{ w3.box3|money }}</dd><dt>Box 4</dt><dd>SS tax</dd><dd class="amt">{{ w3.box4|money }}</dd>
+<dt>Box 5</dt><dd>Medicare wages</dd><dd class="amt">{{ w3.box5|money }}</dd><dt>Box 6</dt><dd>Medicare tax</dd><dd class="amt">{{ w3.box6|money }}</dd>
+</dl><p class="muted small">These should match the sum of your four 941s: box 1 equals the line 2 total, box 3 the line 5a total, box 5 the line 5c total.</p></div>
+{% endif %}
+{% endblock %}

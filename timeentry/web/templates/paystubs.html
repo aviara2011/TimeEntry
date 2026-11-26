@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pay stubs {{ run.pay_date }}</title><link rel="stylesheet" href="/static/style.css"><style>body{background:#fff}</style></head>
+<body><main>
+<p class="no-print"><button onclick="window.print()">Print</button> <a href="/payroll/{{ run.id }}">Back</a></p>
+{% if run.status != 'final' %}<div class="note">DRAFT: this pay run isn't finalized.</div>{% endif %}
+{% for pc, ytd in stubs %}
+<div class="invoice-doc {{ 'page-break' if not loop.last }}" style="margin-bottom:24px">
+<div class="head"><div><strong>{{ company.name }}</strong><div class="pre">{{ company.address }}</div><div>EIN {{ company.ein }}</div></div>
+<div style="text-align:right"><strong>EARNINGS STATEMENT</strong><div>{{ pc.employee.name }}</div><div>{{ pc.employee.ssn_masked }}</div>
+<div>Period {{ run.period_start|date }} – {{ run.period_end|date }}</div><div>Pay date {{ run.pay_date|date }}</div></div></div>
+<table><tr><th></th><th class="num">Current</th><th class="num">Year to date</th></tr>
+<tr><td>Gross wages</td><td class="num">{{ pc.gross|money }}</td><td class="num">{{ ytd.gross|money }}</td></tr>
+{% if ytd.shareholder_health %}<tr><td>S-Corp shareholder health (taxable, not paid in cash)</td><td class="num">{{ pc.shareholder_health|money }}</td><td class="num">{{ ytd.shareholder_health|money }}</td></tr>{% endif %}
+<tr><td>Federal income tax</td><td class="num">-{{ pc.fit|money }}</td><td class="num">-{{ ytd.fit|money }}</td></tr>
+<tr><td>Social Security</td><td class="num">-{{ pc.ss_ee|money }}</td><td class="num">-{{ ytd.ss_ee|money }}</td></tr>
+<tr><td>Medicare</td><td class="num">-{{ (pc.medicare_ee + pc.addl_medicare)|money }}</td><td class="num">-{{ (ytd.medicare_ee + ytd.addl_medicare)|money }}</td></tr>
+<tr class="total"><td>Net pay</td><td class="num">{{ pc.net|money }}</td><td class="num">{{ ytd.net|money }}</td></tr></table>
+<p style="color:#555;font-size:.85rem">Federal filing status: {{ FILING_STATUSES[pc.employee.filing_status] }}. Wyoming has no state income tax.</p>
+</div>
+{% endfor %}
+</main></body></html>
