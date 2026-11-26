@@ -305,7 +305,8 @@ def form_1120s(db: Session, company: Company, year: int) -> Form1120S:
                 f.line2_cogs += deductible
             elif tl in LINE_LABELS_1120S:
                 lines[tl] += deductible
-                detail[tl].append((acct.label + (f" ({acct.deductible_pct}% deductible)" if acct.deductible_pct != 100 else ""), deductible))
+                note = f" ({acct.deductible_pct}% deductible)" if acct.deductible_pct != 100 and "deductible" not in acct.name else ""
+                detail[tl].append((acct.label + note, deductible))
             elif tl == "K12a":
                 f.k12a_charity += amt
             elif tl == "K16c":

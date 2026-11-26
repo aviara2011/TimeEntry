@@ -30,6 +30,7 @@ your CPA. Direct IRS e-filing requires IRS authorization as an e-file provider a
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m timeentry                                      # then open http://127.0.0.1:8000
+python -m timeentry --demo                               # or explore a demo company first (data/demo.db)
 ```
 
 It only listens on `127.0.0.1`, so other devices can't reach it. To keep the database

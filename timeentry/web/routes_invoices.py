@@ -102,6 +102,8 @@ def invoice_view(invoice_id: int, request: Request, db: Session = Depends(get_db
 @router.get("/{invoice_id}/print")
 def invoice_print(invoice_id: int, request: Request, db: Session = Depends(get_db)):
     inv = db.get(Invoice, invoice_id)
+    if not inv:
+        return redirect("/invoices", err="Invoice not found")
     return render(request, "invoice_print.html", inv=inv, company=get_company(db))
 
 

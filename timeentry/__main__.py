@@ -8,7 +8,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="TimeEntry local web app")
     parser.add_argument("--host", default="127.0.0.1", help="Keep 127.0.0.1 so only this computer can reach it")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--demo", action="store_true", help="Open a demo company (data/demo.db) instead of your data")
     args = parser.parse_args()
+    if args.demo:
+        import os
+        from pathlib import Path
+
+        from .demo import build_demo
+
+        path = Path(__file__).resolve().parent.parent / "data" / "demo.db"
+        print("Building demo company…")
+        build_demo(path)
+        os.environ["TIMEENTRY_DB"] = str(path)
+        print(f"Demo ready: http://{args.host}:{args.port}")
     uvicorn.run("timeentry.web.app:create_app", factory=True, host=args.host, port=args.port)
 
 
