@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..models import EXPENSE_CATEGORIES, PAY_FREQUENCIES, Client, Employee, Expense, Invoice, Payment, Project, TimeEntry
+from ..models import EXPENSE_CATEGORIES, PAY_FREQUENCIES, BankTransaction, Client, Employee, Expense, Invoice, Payment, Project, TimeEntry
 from ..money import amount_for_minutes, parse_money
 from ..reports import upcoming_deadlines
 from .common import checked, get_company, get_db, opt_int, parse_date, redirect, render
@@ -39,6 +39,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         unbilled_minutes=sum(e.minutes for e in unbilled), unbilled_amount=unbilled_amount,
         ar=ar, overdue=overdue, ytd_receipts=ytd_receipts, running=running,
         deadlines=upcoming_deadlines(today, company),
+        bank_new=db.scalar(select(func.count(BankTransaction.id)).where(
+            BankTransaction.status == "new", BankTransaction.pending.is_(False))),
         setup_needed=not company.ein or not db.scalar(select(func.count(Employee.id))),
     )
 

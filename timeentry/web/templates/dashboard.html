@@ -15,7 +15,7 @@
 <div class="grid">
 <div>
 <h2>Quick actions</h2>
-<div class="card toolbar"><a class="btn" href="/time">Log time</a><a class="btn secondary" href="/invoices/new">New invoice</a><a class="btn secondary" href="/payroll">Run payroll</a><a class="btn secondary" href="/taxes">Tax forms</a></div>
+<div class="card toolbar"><a class="btn" href="/time">Log time</a><a class="btn secondary" href="/invoices/new">New invoice</a><a class="btn secondary" href="/payroll">Run payroll</a><a class="btn secondary" href="/taxes">Tax forms</a><a class="btn secondary" href="/bank">Bank{% if bank_new %} ({{ bank_new }} to review){% endif %}</a></div>
 {% if overdue %}<h2>Overdue invoices</h2><div class="table-wrap"><table>
 {% for i in overdue %}<tr><td><a href="/invoices/{{ i.id }}">{{ i.number }}</a></td><td>{{ i.client.name }}</td><td>due {{ i.due_date|date }}</td><td class="num">{{ i.balance|money }}</td></tr>{% endfor %}
 </table></div>{% endif %}

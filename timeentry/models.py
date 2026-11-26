@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -269,3 +269,81 @@ class TaxDeposit(Base):
     quarter: Mapped[int | None] = mapped_column(Integer, nullable=True)
     amount: Mapped[int] = mapped_column(Integer)
     confirmation: Mapped[str] = mapped_column(String(100), default="")
+
+
+# ---------------------------------------------------------------- banking
+class BankAccount(Base):
+    __tablename__ = "bank_account"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    institution: Mapped[str] = mapped_column(String(200), default="")
+    last4: Mapped[str] = mapped_column(String(4), default="")
+    kind: Mapped[str] = mapped_column(String(20), default="checking")  # checking | savings | credit_card
+    opening_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    opening_balance: Mapped[int] = mapped_column(Integer, default=0)  # cents, balance before first transaction
+    bank_balance: Mapped[int | None] = mapped_column(Integer, nullable=True)  # last balance reported by the bank
+    bank_balance_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    simplefin_id: Mapped[str | None] = mapped_column(String(200), nullable=True, unique=True)
+    last_sync: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    @property
+    def label(self) -> str:
+        return f"{self.name}{' ••' + self.last4 if self.last4 else ''}"
+
+
+class BankTransaction(Base):
+    """One line from the bank. Amount is signed: + money in, - money out."""
+
+    __tablename__ = "bank_transaction"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("bank_account.id"), index=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    amount: Mapped[int] = mapped_column(Integer)
+    description: Mapped[str] = mapped_column(Text, default="")
+    memo: Mapped[str] = mapped_column(Text, default="")
+    external_id: Mapped[str] = mapped_column(String(200))  # FITID / SimpleFIN id / CSV hash
+    source: Mapped[str] = mapped_column(String(20), default="file")  # file | simplefin | manual
+    pending: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(12), default="new")  # new | matched | excluded
+    note: Mapped[str] = mapped_column(Text, default="")
+    payment_id: Mapped[int | None] = mapped_column(ForeignKey("payment.id", ondelete="SET NULL"), nullable=True)
+    expense_id: Mapped[int | None] = mapped_column(ForeignKey("expense.id", ondelete="SET NULL"), nullable=True)
+    tax_deposit_id: Mapped[int | None] = mapped_column(ForeignKey("tax_deposit.id", ondelete="SET NULL"), nullable=True)
+    paycheck_id: Mapped[int | None] = mapped_column(ForeignKey("paycheck.id", ondelete="SET NULL"), nullable=True)
+    pay_run_id: Mapped[int | None] = mapped_column(ForeignKey("pay_run.id", ondelete="SET NULL"), nullable=True)
+    created_record: Mapped[bool] = mapped_column(Boolean, default=False)  # we created the linked record
+    reconciliation_id: Mapped[int | None] = mapped_column(ForeignKey("reconciliation.id"), nullable=True)
+    account: Mapped[BankAccount] = relationship()
+    payment: Mapped[Payment | None] = relationship()
+    expense: Mapped[Expense | None] = relationship()
+    tax_deposit: Mapped[TaxDeposit | None] = relationship()
+    paycheck: Mapped[Paycheck | None] = relationship()
+    pay_run: Mapped[PayRun | None] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("account_id", "external_id", name="uq_bank_txn_external"),
+    )
+
+
+class Reconciliation(Base):
+    __tablename__ = "reconciliation"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("bank_account.id"))
+    statement_date: Mapped[dt.date] = mapped_column(Date)
+    statement_balance: Mapped[int] = mapped_column(Integer)
+    beginning_balance: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(12), default="open")  # open | done
+    completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    account: Mapped[BankAccount] = relationship()
+
+
+class BankConnection(Base):
+    """SimpleFIN Bridge access URL (contains credentials; local database only)."""
+
+    __tablename__ = "bank_connection"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(20), default="simplefin")
+    access_url: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.now)
+    last_error: Mapped[str] = mapped_column(Text, default="")

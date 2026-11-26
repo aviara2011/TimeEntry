@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Bank accounts</h1>
+<div class="table-wrap"><table>
+<tr><th>Account</th><th>Type</th><th class="num">Balance per books</th><th class="num">Balance per bank</th><th class="num">To review</th><th>Reconciled through</th><th></th></tr>
+{% for r in rows %}{% set a = r.a %}
+<tr><td><a href="/bank/{{ a.id }}">{{ a.label }}</a><div class="muted small">{{ a.institution }}{% if a.simplefin_id %} · auto-sync{% endif %}</div></td>
+<td>{{ a.kind.replace('_', ' ') }}</td><td class="num">{{ r.book|money }}</td>
+<td class="num">{% if a.bank_balance is not none %}{{ a.bank_balance|money }}<div class="muted small">{{ a.bank_balance_date|date }}</div>{% else %}—{% endif %}</td>
+<td class="num">{% if r.new %}<a class="badge sent" href="/bank/{{ a.id }}">{{ r.new }}</a>{% else %}0{% endif %}</td>
+<td>{{ r.last_rec.statement_date|date if r.last_rec else 'never' }}</td>
+<td><a class="btn secondary small" href="/bank/{{ a.id }}/reconcile">Reconcile</a></td></tr>
+{% else %}<tr><td colspan="7" class="muted">No accounts yet. Connect your bank below, or add an account and import a download file.</td></tr>{% endfor %}
+</table></div>
+
+<div class="grid">
+<div class="card">
+<h3 style="margin-top:0">Automatic bank feed (SimpleFIN)</h3>
+{% if conn %}
+<p>Connected{% if conn.last_error %}. <span class="flash err" style="display:block;margin:8px 0">{{ conn.last_error }}</span>{% else %}.{% endif %}</p>
+<div class="toolbar"><form class="inline" method="post" action="/bank/simplefin/sync"><button>Sync now</button></form>
+<form class="inline" method="post" action="/bank/simplefin/disconnect" onsubmit="return confirm('Disconnect the bank feed?')"><button class="danger">Disconnect</button></form></div>
+<p class="muted small">Sync fetches new transactions and balances for all connected accounts. Accounts appear here automatically the first time.</p>
+{% else %}
+<ol class="small" style="padding-left:18px">
+<li>Create an account at <strong>SimpleFIN Bridge</strong> (beta-bridge.simplefin.org; about $15/year) and link your business bank there. It uses MX's bank connections, the same kind QuickBooks uses.</li>
+<li>In SimpleFIN Bridge, create a <em>setup token</em> for a new app and paste it below.</li>
+</ol>
+<form method="post" action="/bank/simplefin/connect"><label>Setup token <textarea name="token" required style="min-height:60px"></textarea></label><p><button>Connect &amp; download 90 days</button></p></form>
+<p class="muted small">The token can be used once. This app gets read-only access, and the resulting access key is stored only in your local database.</p>
+{% endif %}
+</div>
+<form class="card" method="post" action="/bank/accounts/save">
+<h3 style="margin-top:0">Add an account manually</h3>
+<p class="muted small">For banks you'll import files from (OFX/QFX/QuickBooks Web Connect or CSV).</p>
+<div class="row"><label>Name <input name="name" placeholder="Business checking" required></label><label>Bank <input name="institution"></label></div>
+<div class="row" style="margin-top:10px"><label>Last 4 <input name="last4" maxlength="4"></label>
+<label>Type <select name="kind"><option value="checking">Checking</option><option value="savings">Savings</option><option value="credit_card">Credit card</option></select></label></div>
+<div class="row" style="margin-top:10px"><label>Starting balance ($) <input name="opening_balance" placeholder="0.00"></label><label>As of <input type="date" name="opening_date"></label></div>
+<p class="muted small">Starting balance = the balance on the day before the first transaction you'll import (for a credit card, enter what you owe as a negative number).</p>
+<button>Add account</button>
+</form>
+</div>
+{% endblock %}

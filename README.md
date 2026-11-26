@@ -15,6 +15,7 @@ It runs on your own computer as a web app (FastAPI + SQLite). All your data is i
 | **Invoices** | Build an invoice from unbilled time, add fixed-fee lines, draft → sent → paid/void, partial payments, printable / save-as-PDF invoice |
 | **Payroll** | Salaried owner-employees on a weekly/biweekly/semimonthly/monthly schedule. Federal income tax withholding (IRS Pub. 15-T percentage method, 2020+ W-4), Social Security with wage base, Medicare and Additional Medicare, FUTA, state unemployment (configurable rate and wage base), 2% shareholder health premiums, pay stubs with YTD |
 | **History** | "Historical" pay runs to type in payroll you already ran in QuickBooks, so YTD wage bases, Q4 941 and W-2s are complete |
+| **Bank** | Automatic bank feed through SimpleFIN Bridge, or import OFX / QFX / QuickBooks Web Connect (.qbo) / CSV downloads. Review screen that matches deposits to invoices, withdrawals to expenses, payroll and IRS deposits, remembers categories by payee, and records distributions. Statement reconciliation with locking and undo |
 | **Expenses** | Business expenses by Form 1120-S line, shareholder distributions, non-deductible items |
 | **Taxes** | Form 941 (each quarter, incl. monthly liability schedule), Form 940, W-2 / W-3 worksheets + CSV, Form 1120-S income/deductions with 1125-E officer comp and K-1 allocation, EFTPS deposit log, upcoming-deadline list |
 
@@ -49,6 +50,26 @@ Run tests with `pytest`.
    After that, check that the Q1–Q3 941 worksheets match what you filed.
 5. From then on: log time → invoice → record payments → run payroll → deposit → file.
 
+## Bank feeds
+
+Two ways to get transactions in (both can be used side by side; duplicates are skipped):
+
+* **Automatic (SimpleFIN Bridge)**: sign up at SimpleFIN Bridge (about $15/year), connect your
+  business bank there, create a setup token, and paste it on the **Bank** page. The app gets
+  read-only access; the access key stays in your local database. Click **Sync now** whenever
+  you want new transactions (the first sync pulls 90 days).
+* **Files**: in your bank's website, download transactions as *Quicken (.qfx)*, *QuickBooks
+  Web Connect (.qbo)*, *OFX*, or *CSV*, and import them on the account's page.
+
+Then work through **To review**: click a suggested match or pick a category. Categorizing
+creates the invoice payment, expense, distribution or tax deposit for you; **Undo** removes it.
+Each month, open **Reconcile**, enter the statement's ending date and balance, untick anything
+not on the statement, and finish when the difference is $0.00.
+
+When switching from QuickBooks, set each account's starting balance to the balance on the
+day before the first transaction you import, ideally a statement date QuickBooks already
+reconciled.
+
 ## Important tax notes
 
 * **Tax tables are per year.** `timeentry/tax/tables.py` holds the 2026 numbers. Before your
@@ -78,6 +99,9 @@ timeentry/
   tax/withholding.py   Pub. 15-T Worksheet 1A
   payroll.py           paycheck calculation with YTD wage-base tracking
   reports.py           941, 940, W-2/W-3, 1120-S/K-1, deadlines
+  bank_import.py       OFX/QFX/QBO and CSV parsers
+  simplefin.py         SimpleFIN Bridge client
+  banking.py           import de-duplication, matching, categorizing, reconciliation
   models.py            database tables
   web/                 FastAPI routes, Jinja templates, CSS
 tests/                 unit + end-to-end tests

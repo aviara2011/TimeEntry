@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toolbar"><h1 style="margin:0">Reconcile {{ a.label }}</h1><span class="spacer"></span><a href="/bank/{{ a.id }}">← Transactions</a></div>
+{% if not rec %}
+<form class="card" method="post" action="/bank/{{ a.id }}/reconcile/start">
+<p>Take your bank statement. Enter its ending date and ending balance{% if a.kind == 'credit_card' %} (amount owed, as a negative number){% endif %}.</p>
+<div class="row"><label>Statement ending date <input type="date" name="statement_date" required></label>
+<label>Statement ending balance ($) <input name="statement_balance" required></label>
+<label>Beginning balance <input value="{{ beginning|cents }}" disabled></label><button>Start</button></div>
+<p class="muted small" style="margin-bottom:0">The beginning balance is the last reconciled ending balance{% if not last %}: your starting balance, since this account has never been reconciled{% endif %}. It should match the beginning balance on the statement.</p>
+</form>
+{% else %}
+<form method="post" action="/bank/reconcile/{{ rec.id }}/save" id="recform">
+<div class="grid">
+<div class="card stat"><div class="label">Statement ending balance ({{ rec.statement_date|date }})</div><div class="value">{{ rec.statement_balance|money }}</div></div>
+<div class="card stat"><div class="label">Cleared balance</div><div class="value" id="cleared">{{ cleared|money }}</div><div class="muted small">beginning {{ rec.beginning_balance|money }} + ticked items</div></div>
+<div class="card stat"><div class="label">Difference</div><div class="value" id="diff">{{ (rec.statement_balance - cleared)|money }}</div></div>
+</div>
+<p class="muted">Untick anything that isn't on the statement. When the difference is $0.00, click Finish.</p>
+<div class="table-wrap"><table>
+<tr><th><input type="checkbox" checked onclick="document.querySelectorAll('.clr').forEach(c=>c.checked=this.checked);recalc()"></th><th>Date</th><th>Description</th><th>Category</th><th class="num">Amount</th></tr>
+{% for t in txns %}
+<tr><td><input class="clr" type="checkbox" name="cleared" value="{{ t.id }}" data-amt="{{ t.amount }}" {{ 'checked' if t.reconciliation_id == rec.id }} onchange="recalc()"></td>
+<td>{{ t.date.strftime('%m/%d/%Y') }}</td><td>{{ t.description }}</td><td class="small">{{ describe(t) or '—' }}</td><td class="num">{{ t.amount|money }}</td></tr>
+{% else %}<tr><td colspan="5" class="muted">No unreconciled transactions up to {{ rec.statement_date|date }}. Import or sync the statement period first.</td></tr>{% endfor %}
+</table></div>
+<div class="toolbar"><button name="finish" value="1">Finish</button><button class="secondary" name="save" value="1">Save for later</button>
+<button class="danger" name="cancel" value="1" onclick="return confirm('Cancel this reconciliation?')">Cancel</button></div>
+</form>
+<script>
+const begin = {{ rec.beginning_balance }}, stmt = {{ rec.statement_balance }};
+const fmt = c => (c < 0 ? '-' : '') + '$' + (Math.abs(c) / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+function recalc() {
+  let s = begin; document.querySelectorAll('.clr:checked').forEach(c => s += +c.dataset.amt);
+  document.getElementById('cleared').textContent = fmt(s);
+  const d = document.getElementById('diff'); d.textContent = fmt(stmt - s);
+  d.style.color = stmt - s === 0 ? 'var(--ok)' : 'var(--bad)';
+}
+recalc();
+</script>
+{% endif %}
+{% if history %}
+<h2>Completed</h2>
+<div class="table-wrap"><table><tr><th>Statement date</th><th class="num">Beginning</th><th class="num">Ending</th><th>Completed</th><th></th></tr>
+{% for h in history %}<tr><td>{{ h.statement_date|date }}</td><td class="num">{{ h.beginning_balance|money }}</td><td class="num">{{ h.statement_balance|money }}</td><td>{{ h.completed_at.strftime('%m/%d/%Y') if h.completed_at }}</td>
+<td>{% if loop.first and not rec %}<form class="inline" method="post" action="/bank/reconcile/{{ h.id }}/undo" onsubmit="return confirm('Reopen this reconciliation?')"><button class="small secondary">Undo</button></form>{% endif %}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

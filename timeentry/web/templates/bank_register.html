@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+{% set back = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+<div class="toolbar"><h1 style="margin:0">{{ a.label }}</h1><span class="muted">{{ a.institution }}</span><span class="spacer"></span>
+<a class="btn secondary" href="/bank/{{ a.id }}/reconcile">{{ 'Continue reconciling' if rec_open else 'Reconcile' }}</a></div>
+<div class="grid">
+<div class="card stat"><div class="label">Balance per books</div><div class="value">{{ book|money }}</div></div>
+<div class="card stat"><div class="label">Balance per bank</div><div class="value">{{ a.bank_balance|money if a.bank_balance is not none else '—' }}</div>
+{% if a.bank_balance is not none and a.bank_balance != book %}<div class="small" style="color:var(--bad)">Differs by {{ (a.bank_balance - book)|money }}: missing transactions, or the starting balance is off</div>{% endif %}</div>
+<div class="card stat"><div class="label">Reconciled through</div><div class="value" style="font-size:1.1rem">{{ last_rec.statement_date|date if last_rec else 'never' }}</div></div>
+<form class="card" method="post" action="/bank/{{ a.id }}/import" enctype="multipart/form-data">
+<label>Import bank download (.qfx, .ofx, .qbo, .csv) <input type="file" name="file" accept=".qfx,.ofx,.qbo,.csv,.txt"></label>
+<label class="check small" style="margin-top:6px"><input type="checkbox" name="flip_sign"> CSV shows charges as positive (some credit cards)</label>
+<p style="margin:8px 0 0"><button class="small">Import</button> <span class="muted small">Duplicates are skipped.</span></p></form>
+</div>
+
+<div class="toolbar">
+{% for key, label in [('new', 'To review'), ('matched', 'Categorized'), ('excluded', 'Excluded'), ('all', 'All')] %}
+<a class="btn small {{ '' if show == key else 'secondary' }}" href="/bank/{{ a.id }}?show={{ key }}">{{ label }}{% if key != 'all' %} ({{ counts.get(key, 0) }}){% endif %}</a>{% endfor %}
+</div>
+
+<div class="table-wrap"><table>
+<tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>What is it?</th></tr>
+{% for t in txns %}
+<tr>
+<td style="white-space:nowrap">{{ t.date.strftime('%m/%d/%Y') }}{% if t.pending %}<div class="badge">pending</div>{% endif %}{% if t.reconciliation_id %}<div class="badge final" title="Reconciled">R</div>{% endif %}</td>
+<td>{{ t.description }}{% if t.memo %}<div class="muted small">{{ t.memo }}</div>{% endif %}</td>
+<td class="num" style="color:{{ 'var(--ok)' if t.amount > 0 else 'inherit' }}">{{ t.amount|money }}</td>
+<td style="min-width:300px">
+{% if t.status == 'new' and not t.pending %}
+  {% for s in sugg[t.id] %}
+  <form class="inline" method="post" action="/bank/txn/{{ t.id }}/action"><input type="hidden" name="back" value="{{ back }}"><input type="hidden" name="action" value="{{ s.key }}">
+  <button class="small {{ '' if loop.first else 'secondary' }}" style="margin:0 4px 4px 0">{{ s.label }}</button></form>
+  {% endfor %}
+  <form method="post" action="/bank/txn/{{ t.id }}/action" class="row" style="gap:6px;align-items:center;flex-wrap:nowrap">
+  <input type="hidden" name="back" value="{{ back }}">
+  <select name="action" style="margin:0"><option value="">Categorize as…</option>
+  {% for group, opts in choices[t.id] %}{% if opts %}<optgroup label="{{ group }}">{% for v, l in opts %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</optgroup>{% endif %}{% endfor %}
+  </select><button class="small secondary">Save</button></form>
+{% elif t.status == 'new' %}<span class="muted small">Waiting for the bank to post it</span>
+{% else %}
+  <span class="badge {{ 'paid' if t.status == 'matched' else 'draft' }}">{{ describe(t) }}</span>
+  {% if not t.reconciliation_id %}<form class="inline" method="post" action="/bank/txn/{{ t.id }}/unmatch"><input type="hidden" name="back" value="{{ back }}"><button class="small secondary">Undo</button></form>{% endif %}
+{% endif %}
+</td></tr>
+{% else %}<tr><td colspan="4" class="muted">{{ 'All caught up.' if show == 'new' else 'Nothing here.' }}</td></tr>{% endfor %}
+</table></div>
+<p class="muted small">Categorizing creates the matching record in the app: an invoice payment, an expense, a distribution or a tax deposit. Undo removes it again. Records you entered by hand are matched automatically when the amount and date line up.</p>
+{% endblock %}
